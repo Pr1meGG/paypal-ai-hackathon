@@ -12,7 +12,7 @@ it into the project.
 - **REST API** — `Orders`, `Payments`, `Refunds`, `Subscriptions`, `Invoices`,
   `Payouts`, `Disputes`, `Catalog`, `Webhooks`.
 - Auth: **OAuth 2.0 client-credentials** (`client_id` / `client_secret`).
-- All calls hit `https://api.sandbox.paypal.com` — no real money moves.
+- All calls hit `https://api-m.sandbox.paypal.com` — no real money moves.
 - Test cards and buyer/seller sandbox accounts are auto-provisioned.
 
 ### B. Agent Tools (the AI angle — **this is the differentiator**)

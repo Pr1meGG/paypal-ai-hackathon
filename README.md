@@ -60,12 +60,17 @@ uvicorn app.main:app --reload --port 8000
 cd dashboard && python server/serve.py   # :5500
 ```
 
-## PayPal sandbox setup
+## PayPal setup (full guide)
 
+See **[PAYPAL_SETUP.md](PAYPAL_SETUP.md)** — it covers what PayPal offers
+(Agent Tools MCP server, Agentic Commerce Protocol, REST API), how to get
+sandbox credentials, and how the agent uses PayPal to *act* on money.
+
+Quick start:
 1. Sign in at [developer.paypal.com](https://developer.paypal.com)
 2. **Dashboard → Sandbox → Apps** → Create App (Sandbox)
 3. Copy **Client ID** + **Secret** into `.env`
-4. All calls below hit the sandbox — no real money moves.
+4. All calls below hit the sandbox — no real money moves
 
 ## Demo
 

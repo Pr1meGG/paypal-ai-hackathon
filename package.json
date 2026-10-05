@@ -1,0 +1,22 @@
+{
+  "name": "paypal-ai-hackathon",
+  "version": "1.0.0",
+  "description": "> **Payment-aware AI agents that reduce COD RTO and lift lead conversion for Indian D2C brands** > Built for the **PayPal AI Hackathon** on Devpost > (`Best Use of PayPal + AI`, `Best Use of Agentic Commerce`)",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pr1meGG/paypal-ai-hackathon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Pr1meGG/paypal-ai-hackathon/issues"
+  },
+  "homepage": "https://github.com/Pr1meGG/paypal-ai-hackathon#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.4"
+  }
+}

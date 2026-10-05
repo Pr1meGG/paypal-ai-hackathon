@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScopeGuard | AI Scope Enforcement & PayPal Checkout Engine</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <div class="app-layout">
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="nav-left">
+        <div class="brand">
+          <div class="logo-shield">
+            <svg class="shield-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="url(#shieldGrad)" stroke="#38bdf8" stroke-width="1.5"/>
+              <path d="M9 12l2 2 4-4" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="shieldGrad" x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#0284c7" stop-opacity="0.8"/>
+                  <stop offset="1" stop-color="#0f172a" stop-opacity="0.9"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <div class="brand-title-row">
+              <span class="brand-name">ScopeGuard</span>
+              <span class="version-tag">v2.4 Hackathon Edition</span>
+            </div>
+            <p class="brand-tagline">AI Semantic Scope Enforcement & Deterministic PayPal Settlement</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <div class="system-status-pill">
+          <span class="pulse-indicator"></span>
+          <span class="status-text">PayPal Orders v2 API Live</span>
+        </div>
+        <div class="nav-badges">
+          <span class="badge badge-paypal">
+            <svg class="badge-icon-svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.641.641 0 0 1 .632-.544h7.323c3.67 0 6.275 1.764 5.753 5.484-.469 3.344-2.88 5.176-6.195 5.176H9.428l-1.44 6.945a.641.641 0 0 1-.632.556h-.28z"/>
+            </svg>
+            Orders v2 Sandbox
+          </span>
+          <span class="badge badge-ai">
+            <svg class="badge-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Semantic Diff Engine
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Metrics Header Overview Cards -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon-box bg-blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <div class="metric-content">
+          <span class="metric-label">Scopes Audited</span>
+          <h3 class="metric-value" id="statTotalAudits">0</h3>
+          <span class="metric-subtext">Total requests evaluated</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon-box bg-emerald">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="metric-content">
+          <span class="metric-label">Recovered Scope Value</span>
+          <h3 class="metric-value text-emerald" id="statTotalRevenue">$0.00</h3>
+          <span class="metric-subtext">Monetized out-of-scope creep</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon-box bg-purple">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <div class="metric-content">
+          <span class="metric-label">Included SOW Items</span>
+          <h3 class="metric-value" id="statIncludedCount">0</h3>
+          <span class="metric-subtext">Free client revisions honored</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon-box bg-amber">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+        <div class="metric-content">
+          <span class="metric-label">PayPal Captures</span>
+          <h3 class="metric-value text-blue" id="statPaidCount">0</h3>
+          <span class="metric-subtext">Orders v2 settled</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Preset Scenario Bar -->
+    <section class="preset-banner">
+      <div class="preset-header">
+        <div class="preset-title-group">
+          <span class="sparkle-icon">✨</span>
+          <span class="preset-heading">Instant Demo Scenarios</span>
+          <span class="preset-desc">Load realistic client-agency contract diffs in 1-click:</span>
+        </div>
+        <div class="keyboard-tip">
+          <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to Audit
+        </div>
+      </div>
+
+      <div class="preset-pills">
+        <button class="preset-pill active" id="pillScenario1" onclick="loadPreset('included')">
+          <span class="pill-indicator dot-green"></span>
+          <div class="pill-body">
+            <span class="pill-title">Scenario 1: Minor Bug / Layout Fix</span>
+            <span class="pill-tag text-emerald">100% Covered ($0.00)</span>
+          </div>
+        </button>
+
+        <button class="preset-pill" id="pillScenario2" onclick="loadPreset('extra')">
+          <span class="pill-indicator dot-amber"></span>
+          <div class="pill-body">
+            <span class="pill-title">Scenario 2: Analytics & Payment Portal</span>
+            <span class="pill-tag text-amber">Out-of-Scope ($500.00)</span>
+          </div>
+        </button>
+
+        <button class="preset-pill" id="pillScenario3" onclick="loadPreset('major')">
+          <span class="pill-indicator dot-purple"></span>
+          <div class="pill-body">
+            <span class="pill-title">Scenario 3: Enterprise SSO & Multi-Tenant RBAC</span>
+            <span class="pill-tag text-purple">Major Extension ($1,850.00)</span>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- Main 2-Column Workflow Section -->
+    <main class="workspace-grid">
+      <!-- LEFT COLUMN: SOW Contract & Inbound Communication -->
+      <section class="card panel-input">
+        <div class="card-top-bar">
+          <div class="step-indicator">
+            <span class="step-num">1</span>
+            <span class="step-title">Statement of Work (SOW Baseline)</span>
+          </div>
+          <span class="card-tag">Project Contract</span>
+        </div>
+
+        <div class="form-group">
+          <label for="projectTitle">Project Name</label>
+          <input type="text" id="projectTitle" value="Apex Brand E-Commerce Platform" placeholder="e.g. Acme Website Redesign" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="clientName">Client Name / Organization</label>
+            <input type="text" id="clientName" value="Apex Retailers LLC" placeholder="e.g. Apex Retailers LLC" />
+          </div>
+          <div class="form-group flex-1">
+            <label for="clientEmail">Client Billing Email</label>
+            <input type="email" id="clientEmail" value="billing@apexretailers.com" placeholder="billing@client.com" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="label-with-meta">
+            <label for="originalBrief">Agreed Contract Scope & Deliverables</label>
+            <span class="label-badge">Verbatim Source of Truth</span>
+          </div>
+          <textarea id="originalBrief" rows="5" placeholder="Paste the deliverables clause and exclusions from your signed contract...">Deliverables include a 4-page modern marketing website (Home, About, Services, Contact with email form). Includes 2 rounds of minor copy and layout revisions. Custom backend database, admin portals, analytics dashboards, and custom payment integrations are explicitly out of scope.</textarea>
+        </div>
+
+        <div class="step-divider">
+          <div class="step-indicator">
+            <span class="step-num">2</span>
+            <span class="step-title">Inbound Client Request</span>
+          </div>
+          <span class="card-tag">Unstructured Feed</span>
+        </div>
+
+        <div class="form-group">
+          <div class="label-with-meta">
+            <label for="clientRequest">Client Email / Slack / Upwork Message</label>
+            <div class="channel-selector">
+              <span class="channel-chip active">💬 Slack</span>
+              <span class="channel-chip">✉️ Email</span>
+              <span class="channel-chip">💼 Upwork</span>
+            </div>
+          </div>
+          <textarea id="clientRequest" rows="4" placeholder="Paste the new feature request from your client...">Hi team, on the contact page, can you fix the alignment of the submit button on mobile Safari and update our office phone number? Thanks!</textarea>
+        </div>
+
+        <button id="btnAnalyze" class="btn btn-primary btn-block btn-lg" onclick="analyzeScope()">
+          <span class="btn-icon">⚡</span>
+          <span class="btn-text">Audit Scope with AI Engine</span>
+          <div class="btn-spinner hidden" id="btnAnalyzeSpinner"></div>
+        </button>
+      </section>
+
+      <!-- RIGHT COLUMN: AI Scope Diff & PayPal Checkout Execution -->
+      <section class="card panel-output">
+        <div class="card-top-bar">
+          <div class="step-indicator">
+            <span class="step-num">3</span>
+            <span class="step-title">AI Semantic Diff & PayPal Execution</span>
+          </div>
+          <span id="evalStatusBadge" class="status-badge status-idle">Awaiting Audit</span>
+        </div>
+
+        <!-- Empty State Placeholder -->
+        <div id="aiPlaceholder" class="empty-state">
+          <div class="empty-state-visual">
+            <div class="empty-icon-ring">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+          </div>
+          <h3>No Scope Evaluated Yet</h3>
+          <p>Click <strong>"Audit Scope with AI Engine"</strong> or choose a demo scenario above to test automated contract diffing and instant PayPal Orders v2 checkout creation.</p>
+          <div class="empty-features-list">
+            <div class="empty-feat-item">🛡️ Verbatim Clause Evidence Matching</div>
+            <div class="empty-feat-item">💳 Instant PayPal Orders v2 Link Generation</div>
+            <div class="empty-feat-item">🔒 Deterministic Merchant Pricing Boundaries</div>
+          </div>
+        </div>
+
+        <!-- AI Result Presentation Card -->
+        <div id="aiResultCard" class="ai-result-card hidden">
+          <!-- Main Classification Header Banner -->
+          <div id="classificationBanner" class="classification-banner">
+            <div class="banner-left">
+              <div class="banner-icon-badge" id="bannerIconBadge">🛡️</div>
+              <div>
+                <div class="banner-title" id="classificationTitle">ANALYZING</div>
+                <div class="banner-subtitle" id="classificationSubtitle">Evaluating contract boundaries</div>
+              </div>
+            </div>
+            <div class="banner-right">
+              <div class="confidence-box">
+                <span class="confidence-label">Confidence</span>
+                <span class="confidence-value" id="confidenceVal">HIGH (98%)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Analysis Narrative Box -->
+          <div class="result-block">
+            <div class="result-block-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>AI Semantic Evaluation</span>
+            </div>
+            <p id="aiSummaryText" class="result-text"></p>
+          </div>
+
+          <!-- SOW Evidence Quote Box -->
+          <div class="result-block">
+            <div class="result-block-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+              <span>Verbatim SOW Contract Evidence</span>
+            </div>
+            <blockquote id="evidenceQuoteText" class="evidence-quote"></blockquote>
+          </div>
+
+          <!-- Extracted Deliverable Items Chips -->
+          <div class="result-block">
+            <div class="result-block-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+              <span>Itemized Deliverables</span>
+            </div>
+            <ul id="extractedItemsList" class="items-list"></ul>
+          </div>
+
+          <!-- INCLUDED Callout (Shown when In-Scope) -->
+          <div id="includedCallout" class="callout callout-success hidden">
+            <div class="callout-icon-box">✅</div>
+            <div class="callout-text">
+              <h4>Included in Original Statement of Work ($0.00)</h4>
+              <p>This request falls strictly within agreed revision limits. No extra billing or PayPal transaction is required. Your client has been credited with an authorized revision.</p>
+            </div>
+          </div>
+
+          <!-- EXTRA SCOPE Action Card (Shown when Out-of-Scope) -->
+          <div id="paypalActionCard" class="paypal-action-card hidden">
+            <div class="paypal-card-header">
+              <div class="paypal-brand-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.641.641 0 0 1 .632-.544h7.323c3.67 0 6.275 1.764 5.753 5.484-.469 3.344-2.88 5.176-6.195 5.176H9.428l-1.44 6.945a.641.641 0 0 1-.632.556h-.28z"/>
+                </svg>
+              </div>
+              <div class="paypal-header-info">
+                <h3>Monetize Scope Change via PayPal</h3>
+                <p>Human merchant retains deterministic approval over pricing & scope terms.</p>
+              </div>
+            </div>
+
+            <div class="commercial-inputs-row">
+              <div class="form-group price-group">
+                <label for="addonPrice">Billable Amount ($ USD)</label>
+                <div class="input-with-currency">
+                  <span class="currency-symbol">$</span>
+                  <input type="number" id="addonPrice" value="500.00" step="25.00" min="1.00" />
+                </div>
+              </div>
+              <div class="form-group notes-group">
+                <label for="merchantNotes">Merchant Scope Justification</label>
+                <input type="text" id="merchantNotes" value="Additional custom dashboard & PayPal checkout integration" />
+              </div>
+            </div>
+
+            <button id="btnCreateOrder" class="btn btn-paypal btn-block btn-lg" onclick="createPayPalOrder()">
+              <svg class="btn-svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.641.641 0 0 1 .632-.544h7.323c3.67 0 6.275 1.764 5.753 5.484-.469 3.344-2.88 5.176-6.195 5.176H9.428l-1.44 6.945a.641.641 0 0 1-.632.556h-.28z"/>
+              </svg>
+              <span id="btnCreateOrderText">Generate PayPal Sandbox Order (POST /v2/checkout/orders)</span>
+            </button>
+
+            <!-- Active Order Status & Interactive Capture Module -->
+            <div id="orderStatusBox" class="order-status-box hidden">
+              <div class="order-details-card">
+                <div class="detail-row">
+                  <span class="detail-label">PayPal Order ID</span>
+                  <div class="copy-field">
+                    <code id="orderIdVal"></code>
+                    <button class="btn-copy" onclick="copyText('orderIdVal')" title="Copy Order ID">📋</button>
+                  </div>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Order Lifecycle</span>
+                  <span id="orderStatusVal" class="status-pill status-approved">CREATED / AWAITING_PAYER</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Client Approval URL</span>
+                  <a id="orderApproveLink" href="#" target="_blank" class="approve-link">
+                    Open PayPal Checkout Link
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6m4-3h6v6m-11 5L21 3"/></svg>
+                  </a>
+                </div>
+              </div>
+
+              <div class="capture-section">
+                <div class="capture-banner">
+                  <div>
+                    <h4>Client Authorized? Settle Funds</h4>
+                    <p>Captures the authorized PayPal transaction and locks in the new SOW amendment.</p>
+                  </div>
+                  <button id="btnCaptureOrder" class="btn btn-success btn-lg" onclick="captureOrder()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    <span>Capture & Settle Payment</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Capture Success Receipt Card -->
+              <div id="captureSuccessBox" class="capture-success-box hidden">
+                <div class="success-header">
+                  <div class="success-icon">🎉</div>
+                  <div>
+                    <h4>Payment Captured & Verified!</h4>
+                    <p class="success-sub">PayPal Orders v2 settlement complete. Work authorized to commence.</p>
+                  </div>
+                </div>
+                <div class="receipt-grid">
+                  <div class="receipt-cell">
+                    <span class="rc-label">Capture ID</span>
+                    <code id="captureIdVal"></code>
+                  </div>
+                  <div class="receipt-cell">
+                    <span class="rc-label">Settlement Status</span>
+                    <span class="text-emerald font-bold">COMPLETED (Sandbox)</span>
+                  </div>
+                </div>
+                <div class="receipt-actions">
+                  <button class="btn btn-outline btn-sm" onclick="copyInvoiceSummary()">
+                    📋 Copy Client Invoice Summary
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Historical Activity & Audit Ledger Section -->
+    <section class="card audit-log-section">
+      <div class="audit-header">
+        <div class="audit-title-group">
+          <h2>Audit Ledger & Transaction History</h2>
+          <span class="audit-sub">Cryptographically verifiable record of all scope determinations and PayPal captures.</span>
+        </div>
+        <div class="audit-actions">
+          <div class="search-box">
+            <input type="text" id="auditSearchInput" placeholder="Filter audit ledger..." oninput="filterAuditLog()" />
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="refreshLog()">
+            <span>↻ Refresh</span>
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="exportAuditCSV()">
+            <span>📥 Export CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Project & Client</th>
+              <th>Inbound Request</th>
+              <th>AI Classification</th>
+              <th>Billable Price</th>
+              <th>PayPal Order ID</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="auditLogTbody">
+            <tr>
+              <td colspan="8" class="text-center py-4">Loading verified audit log...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Detail Inspection Modal -->
+    <div id="detailModal" class="modal-overlay hidden" onclick="closeModal(event)">
+      <div class="modal-dialog" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 id="modalTitle">Scope Determination Audit</h3>
+          <button class="modal-close-btn" onclick="closeModalDirect()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- Dynamic Modal Content -->
+        </div>
+      </div>
+    </div>
+
+    <!-- App Footer -->
+    <footer class="footer">
+      <div class="footer-content">
+        <p>Built for the <strong>PayPal AI Hackathon</strong> • Architecture: FastAPI + PayPal Orders v2 REST API + Deterministic AI Diffing</p>
+        <p class="footer-links">
+          <a href="https://developer.paypal.com/docs/api/orders/v2/" target="_blank">PayPal Orders v2 Specs</a> •
+          <a href="/docs" target="_blank">FastAPI OpenAPI Spec</a> •
+          <a href="https://api-m.sandbox.paypal.com" target="_blank">Sandbox Endpoint</a>
+        </p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

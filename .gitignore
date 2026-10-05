@@ -9,3 +9,11 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 node_modules/
+ecc_upstream/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

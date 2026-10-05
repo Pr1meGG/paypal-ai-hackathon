@@ -83,7 +83,9 @@ def _deterministic_scope_analysis(original_brief: str, client_request: str) -> S
         "sms notifications", "push notification", "redesign", "crm integration",
         "custom api", "zapier", "ai chatbot", "subscription", "sso", "saml", "okta",
         "rbac", "multi-tenant", "role-based", "access control", "audit log",
-        "audit logging", "payment gateway", "enterprise"
+        "audit logging", "payment gateway", "enterprise", "webhook", "webhooks",
+        "vector store", "pipeline", "quickbooks", "xero", "ai summary", "ai indexing",
+        "indexing", "sync", "automation", "automated", "forecast"
     ]
     
     # Check for keywords indicating revisions/fixes

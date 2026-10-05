@@ -1,638 +1,780 @@
 /**
- * ScopeGuard Front-End Application Controller
- * PayPal AI Hackathon - Automated Scope Diffing & Orders v2 Integration
+ * ScopeGuard Enterprise — Frontend Application Controller (TypeScript)
+ * Handles Contract Scope Diffing, Enterprise Audits, and PayPal Orders v2 REST Lifecycle
  */
-
-// State Management
-const state = {
-  currentProject: null,
-  currentScopeAnalysis: null,
-  currentOrder: null,
-  activePreset: 'included',
-  activeChannel: 'slack',
-  auditHistory: [
-    {
-      id: "sc_init_001",
-      timestamp: new Date(Date.now() - 3600000 * 4).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      projectName: "FinTech MVP Alpha",
-      channel: "slack",
-      classification: "INCLUDED",
-      price: 0,
-      status: "INCLUDED",
-      orderId: "-",
-      explanation: "Footer copyright date update is covered under contract maintenance clause 4.1."
-    },
-    {
-      id: "sc_init_002",
-      timestamp: new Date(Date.now() - 3600000 * 2).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      projectName: "HealthTech Patient Portal",
-      channel: "email",
-      classification: "EXTRA_PROPOSED",
-      price: 650,
-      status: "PAID",
-      orderId: "8XY78412LK90321A",
-      explanation: "Automated SMS notification pipeline was not in agreed SOW."
-    }
-  ]
-};
-
-// Scenario Presets Data
+// ============================================================================
+// 2. Preset Scenarios Data Store
+// ============================================================================
 const PRESETS = {
-  included: {
-    name: "E-Commerce Checkout Redesign",
-    merchant: "freelancer@scopeguard.dev",
-    channel: "slack",
-    sow: `SCOPE OF WORK (SOW) - CONTRACT #SG-2026-004:
-1. Deliver responsive checkout UI supporting desktop and mobile viewports.
-2. Standard form validation for billing and shipping addresses.
-3. Bug fixes and CSS style adjustments for 30 days post-launch.
-4. Integrate basic cart summary and order confirmation screen.`,
-    request: `Hey! On mobile safari the checkout 'Complete Order' button is getting cut off slightly by the browser bar, and there is a typo in the shipping state dropdown. Could you adjust that styling?`,
-    expectedClass: 'INCLUDED',
-    suggestedPrice: 0.00
-  },
-  extra: {
-    name: "SaaS Dashboard v1.2",
-    merchant: "agency@scopeguard.dev",
-    channel: "slack",
-    sow: `SCOPE OF WORK (SOW) - CONTRACT #SG-2026-009:
-1. React frontend with user authentication (Email/Password).
-2. PostgreSQL database schema for personal user profiles.
-3. Standard CSV export of user profile data.
-4. Excludes third-party payments, webhooks, analytics charts, and recurring billing.`,
-    request: `We really love the prototype! We'd like to quickly add a PayPal and Stripe subscription checkout modal with automated tiered billing and a monthly ARR analytics graph before launch next week.`,
-    expectedClass: 'EXTRA_PROPOSED',
-    suggestedPrice: 500.00
-  },
-  major: {
-    name: "Enterprise Fleet Logistics",
-    merchant: "enterprise-lead@scopeguard.dev",
-    channel: "teams",
-    sow: `SCOPE OF WORK (SOW) - CONTRACT #SG-2026-015:
-1. Single-tenant internal driver tracking app.
-2. Basic REST API endpoints for dispatch status updates.
-3. Standard username/password login.
-4. Strictly limited to single company domain without RBAC or multi-tenancy.`,
-    request: `Our enterprise client demands Okta SAML 2.0 SSO integration, multi-tenant workspace isolation with 5 granular role-based access control (RBAC) tiers, and automated audit logging exports. Can you deliver this by Friday?`,
-    expectedClass: 'EXTRA_PROPOSED',
-    suggestedPrice: 1850.00
-  }
-};
+    db_migration: {
+        client_name: "Apex Global Logistics Inc.",
+        client_email: "procurement@apexlogistics.com",
+        channel: "slack",
+        contract: `MASTER SERVICES AGREEMENT - EXHIBIT A: SCOPE OF WORK
+1. CORE SERVICES
+1.1 Provider shall deliver a React web application frontend and Node.js REST API backend.
+1.2 Provider shall implement PostgreSQL schema design and deploy on existing AWS RDS instances.
+1.3 Target timeline: 12 calendar weeks from kickoff.
 
-// DOM Elements
-const elements = {
-  // Inputs
-  projectName: document.getElementById('projectName'),
-  merchantEmail: document.getElementById('merchantEmail'),
-  contractSow: document.getElementById('contractSow'),
-  clientRequest: document.getElementById('clientRequest'),
-  btnAnalyze: document.getElementById('btnAnalyze'),
-  
-  // Commercial inputs
-  proposedPrice: document.getElementById('proposedPrice'),
-  merchantNotes: document.getElementById('merchantNotes'),
-  btnApproveOrder: document.getElementById('btnApproveOrder'),
-  
-  // Panes
-  analysisBadge: document.getElementById('analysisBadge'),
-  emptyState: document.getElementById('emptyState'),
-  aiResultCard: document.getElementById('aiResultCard'),
-  classificationBanner: document.getElementById('classificationBanner'),
-  classificationIcon: document.getElementById('classificationIcon'),
-  classificationTitle: document.getElementById('classificationTitle'),
-  classificationSubtitle: document.getElementById('classificationSubtitle'),
-  confidenceScore: document.getElementById('confidenceScore'),
-  explanationText: document.getElementById('explanationText'),
-  sowEvidenceText: document.getElementById('sowEvidenceText'),
-  itemizedDeliverables: document.getElementById('itemizedDeliverables'),
-  
-  // Callouts & PayPal
-  includedCallout: document.getElementById('includedCallout'),
-  paypalActionCard: document.getElementById('paypalActionCard'),
-  orderStatusBox: document.getElementById('orderStatusBox'),
-  orderIdCode: document.getElementById('orderIdCode'),
-  idempotencyKey: document.getElementById('idempotencyKey'),
-  orderStatusPill: document.getElementById('orderStatusPill'),
-  approveUrlLink: document.getElementById('approveUrlLink'),
-  captureSection: document.getElementById('captureSection'),
-  btnCapturePayment: document.getElementById('btnCapturePayment'),
-  captureSuccessBox: document.getElementById('captureSuccessBox'),
-  captureIdCode: document.getElementById('captureIdCode'),
-  payerEmailCode: document.getElementById('payerEmailCode'),
-  
-  // Metrics
-  kpiTotalScans: document.getElementById('kpiTotalScans'),
-  kpiCreepPrevented: document.getElementById('kpiCreepPrevented'),
-  kpiExtraProposed: document.getElementById('kpiExtraProposed'),
-  kpiCaptureRate: document.getElementById('kpiCaptureRate'),
-  
-  // Audit Table & Search
-  auditSearchInput: document.getElementById('auditSearchInput'),
-  auditTableBody: document.getElementById('auditTableBody'),
-  
-  // Modal & Toasts
-  auditModal: document.getElementById('auditModal'),
-  modalJson: document.getElementById('modalJson'),
-  toastContainer: document.getElementById('toastContainer')
-};
+2. EXCLUSIONS & CHANGE CONTROL
+2.1 Database migration from legacy Oracle 11g or mainframe on-premise systems is explicitly EXCLUDED from base fees.
+2.2 Any zero-downtime data ETL or parallel sync pipelines require an approved Contractual Change Order at standard senior engineering rates ($175/hr).`,
+        request: "Hi ScopeGuard team, per our executive steering committee meeting yesterday, we need you to migrate our 850GB Oracle 11g database to PostgreSQL with zero-downtime ETL before next Friday's product launch."
+    },
+    sso_rbac: {
+        client_name: "FinTech Prime Capital",
+        client_email: "vendor-management@primecap.io",
+        channel: "jira",
+        contract: `STATEMENT OF WORK #2026-FPC-09
+1. SCOPE OF SERVICES
+1.1 Implementation of standard email/password authentication using AWS Cognito.
+1.2 User session management with JWT tokens and 15-minute rotation.
 
-// ==========================================================================
-// Initialization & Event Listeners
-// ==========================================================================
+2. OUT OF SCOPE
+2.1 SAML 2.0 / Okta / Azure AD Enterprise Single Sign-On (SSO) integration.
+2.2 Custom RBAC permission matrix beyond basic Admin/User roles. Any enterprise IAM enhancements require a separate Change Authorization of $3,500.00.`,
+        request: "JIRA SEC-402: Security Audit Requirement - Enterprise Okta SAML 2.0 SSO and granular Role-Based Access Control (RBAC) with 6 permission tiers must be enabled for our production release."
+    },
+    minor_fix: {
+        client_name: "Nordic Commerce ApS",
+        client_email: "tech@nordiccommerce.dk",
+        channel: "email",
+        contract: `PROFESSIONAL SERVICES CONTRACT
+1. WARRANTY & BUG FIXES
+1.1 Provider warrants that the deliverables will substantially conform to specifications for 90 days following acceptance.
+1.2 Provider will correct minor defect reports, UI alignment issues, and typography styling bugs within 2 business days at no additional charge.`,
+        request: "Hello team, we noticed the navigation bar brand logo on the checkout page is shifted 4px to the left on mobile viewport Safari. Can you please align it per the Figma spec?"
+    }
+};
+const state = {
+    currentView: 'workbench',
+    currentChannel: 'slack',
+    currentAnalysis: null,
+    activeOrderId: null,
+    activeOrderData: null,
+    activeCaptureData: null,
+    auditLog: [],
+    kpi: {
+        activeContracts: 14,
+        proposalsCaptured: 3,
+        settlementVolume: 7950.00,
+        complianceScore: 99.8
+    }
+};
+// ============================================================================
+// 4. Strongly Typed API Client
+// ============================================================================
+class ScopeGuardApi {
+    static async request(endpoint, options = {}) {
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(options.headers || {})
+        };
+        const res = await fetch(endpoint, {
+            ...options,
+            headers
+        });
+        if (!res.ok) {
+            let errorDetail = `HTTP ${res.status}: ${res.statusText}`;
+            try {
+                const errJson = await res.json();
+                if (errJson.detail) {
+                    errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+                }
+            }
+            catch {
+                // use fallback
+            }
+            throw new Error(errorDetail);
+        }
+        return (await res.json());
+    }
+    static async analyzeScope(payload) {
+        return this.request('/api/scope/analyze', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+    static async createOrder(payload) {
+        return this.request('/api/paypal/orders/create', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+    static async captureOrder(orderId) {
+        return this.request(`/api/paypal/orders/${encodeURIComponent(orderId)}/capture`, {
+            method: 'POST'
+        });
+    }
+    static async getHistory() {
+        return this.request('/api/scope/history');
+    }
+}
+// ============================================================================
+// 5. Core Application Controller & UI Logic
+// ============================================================================
+// Initialize when DOM content is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  loadPreset('included');
-  renderAuditTable();
-  updateKPIMetrics();
-
-  // Keyboard shortcuts (1, 2, 3 for presets)
-  window.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === '1') loadPreset('included');
-    if (e.key === '2') loadPreset('extra');
-    if (e.key === '3') loadPreset('major');
-  });
-
-  // Search input filter
-  if (elements.auditSearchInput) {
-    elements.auditSearchInput.addEventListener('input', (e) => {
-      renderAuditTable(e.target.value.trim().toLowerCase());
-    });
-  }
+    renderKpis();
+    loadInitialLedger();
+    setupLedgerFilter();
+    setupInteractiveEnhancements();
+    setupKeyboardShortcuts();
 });
-
-// Toast notification helper
-function showToast(message, type = 'info') {
-  if (!elements.toastContainer) return;
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  
-  let icon = 'ℹ️';
-  if (type === 'success') icon = '✅';
-  if (type === 'warning') icon = '⚠️';
-  if (type === 'error') icon = '❌';
-
-  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
-  elements.toastContainer.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(50px)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
-}
-
-// Channel Selector
-function selectChannel(channel) {
-  state.activeChannel = channel;
-  document.querySelectorAll('.channel-chip').forEach(chip => {
-    chip.classList.toggle('active', chip.dataset.channel === channel);
-  });
-}
-
-// Load Scenario Preset
-function loadPreset(presetKey) {
-  const preset = PRESETS[presetKey];
-  if (!preset) return;
-
-  state.activePreset = presetKey;
-  
-  // Update UI Pills
-  document.querySelectorAll('.preset-pill').forEach(pill => pill.classList.remove('active'));
-  const activePill = document.getElementById(`pillScenario${presetKey === 'included' ? 1 : presetKey === 'extra' ? 2 : 3}`);
-  if (activePill) activePill.classList.add('active');
-
-  // Fill Inputs
-  elements.projectName.value = preset.name;
-  elements.merchantEmail.value = preset.merchant;
-  elements.contractSow.value = preset.sow;
-  elements.clientRequest.value = preset.request;
-  selectChannel(preset.channel);
-
-  // Reset Output State
-  resetOutputPane();
-  showToast(`Loaded ${preset.name} preset`, 'info');
-}
-
-function resetOutputPane() {
-  state.currentProject = null;
-  state.currentScopeAnalysis = null;
-  state.currentOrder = null;
-
-  elements.emptyState.classList.remove('hidden');
-  elements.aiResultCard.classList.add('hidden');
-  elements.includedCallout.classList.add('hidden');
-  elements.paypalActionCard.classList.add('hidden');
-  elements.orderStatusBox.classList.add('hidden');
-  elements.captureSection.classList.add('hidden');
-  elements.captureSuccessBox.classList.add('hidden');
-
-  elements.analysisBadge.className = 'status-badge status-idle';
-  elements.analysisBadge.textContent = 'Awaiting Input';
-}
-
-// ==========================================================================
-// Step 1: Semantic AI Scope Analysis
-// ==========================================================================
-async function runScopeAnalysis() {
-  const projectName = elements.projectName.value.trim();
-  const merchantEmail = elements.merchantEmail.value.trim();
-  const contractSow = elements.contractSow.value.trim();
-  const clientRequest = elements.clientRequest.value.trim();
-
-  if (!projectName || !merchantEmail || !contractSow || !clientRequest) {
-    showToast('Please provide Project Name, Merchant Email, SOW, and Client Message.', 'warning');
-    return;
-  }
-
-  // Set Loading State
-  elements.btnAnalyze.disabled = true;
-  elements.btnAnalyze.innerHTML = `<div class="btn-spinner"></div> Analyzing Scope Brief...`;
-
-  try {
-    // 1. Create or register project
-    const projectRes = await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: projectName,
-        client_name: "Client Organization",
-        client_email: merchantEmail,
-        original_brief: contractSow
-      })
-    });
-
-    if (!projectRes.ok) throw new Error('Failed to create project record.');
-    state.currentProject = await projectRes.json();
-
-    // 2. Perform AI Scope Diff
-    const analyzeRes = await fetch(`/api/scope/projects/${state.currentProject.id}/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_request: clientRequest
-      })
-    });
-
-    if (!analyzeRes.ok) throw new Error('Failed to analyze scope with AI.');
-    state.currentScopeAnalysis = await analyzeRes.json();
-
-    // Render results
-    renderAnalysisResult(state.currentScopeAnalysis);
-    
-    // Add to audit history
-    addToAuditLog({
-      id: state.currentScopeAnalysis.id,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      projectName: state.currentProject.title,
-      channel: state.activeChannel,
-      classification: state.currentScopeAnalysis.classification,
-      price: (state.currentScopeAnalysis.amount_cents || 0) / 100,
-      status: state.currentScopeAnalysis.classification,
-      orderId: "-",
-      explanation: state.currentScopeAnalysis.ai_summary || "Scope evaluated against signed statement of work."
-    });
-
-    showToast(`Analysis Complete: ${state.currentScopeAnalysis.classification}`, 'success');
-  } catch (err) {
-    console.error('Scope Analysis Error:', err);
-    showToast(`Analysis error: ${err.message}`, 'error');
-  } finally {
-    elements.btnAnalyze.disabled = false;
-    elements.btnAnalyze.innerHTML = `
-      <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-      </svg>
-      Analyze Scope & Diff Brief
-    `;
-  }
-}
-
-function renderAnalysisResult(analysis) {
-  elements.emptyState.classList.add('hidden');
-  elements.aiResultCard.classList.remove('hidden');
-
-  const isIncluded = analysis.classification === 'INCLUDED';
-
-  // Badge Status
-  elements.analysisBadge.className = `status-badge ${isIncluded ? 'status-included' : 'status-extra'}`;
-  elements.analysisBadge.textContent = analysis.classification;
-
-  // Banner
-  elements.classificationBanner.className = `classification-banner ${isIncluded ? 'banner-included' : 'banner-extra'}`;
-  elements.classificationIcon.textContent = isIncluded ? '✅' : '⚡';
-  elements.classificationTitle.textContent = isIncluded 
-    ? 'Covered in Signed Contract' 
-    : 'Out-of-Scope Work Detected';
-  elements.classificationSubtitle.textContent = isIncluded
-    ? 'Request matches agreed deliverables. Zero additional billing required.'
-    : 'Requires merchant approval and a PayPal Orders v2 payment link.';
-
-  // Confidence Score
-  const confText = analysis.confidence || 'HIGH';
-  elements.confidenceScore.textContent = confText === 'HIGH' ? '98%' : confText === 'MEDIUM' ? '82%' : '65%';
-
-  // Explanations & Evidence
-  elements.explanationText.textContent = analysis.ai_summary || 'Scope analysis completed against contractual SOW.';
-  elements.sowEvidenceText.textContent = `"${analysis.evidence_quote || 'Directly correlates with signed contract deliverables.'}"`;
-
-  // Itemized List
-  elements.itemizedDeliverables.innerHTML = '';
-  let items = [];
-  try {
-    if (analysis.extracted_items_json) {
-      items = JSON.parse(analysis.extracted_items_json);
+function setupInteractiveEnhancements() {
+    const priceInput = document.getElementById('order-price');
+    if (priceInput) {
+        priceInput.addEventListener('input', () => {
+            const val = parseFloat(priceInput.value);
+            if (!isNaN(val) && val > 0) {
+                const fee = Math.round((val * 0.0349 + 0.49) * 100) / 100;
+                const net = Math.round((val - fee) * 100) / 100;
+                const feeEl = document.getElementById('estimated-fee-display');
+                if (feeEl) {
+                    feeEl.textContent = `Est. PayPal Fee: $${fee.toFixed(2)} | Net Settlement: $${net.toFixed(2)}`;
+                }
+            }
+        });
     }
-  } catch (e) {
-    items = [];
-  }
-  if (!items || items.length === 0) {
-    items = isIncluded ? ['Minor CSS style adjustments', 'Typo fixes'] : ['PayPal / Stripe Checkout Integration', 'Analytics Reporting Graph'];
-  }
-
-  items.forEach(item => {
-    const li = document.createElement('li');
-    li.textContent = item;
-    elements.itemizedDeliverables.appendChild(li);
-  });
-
-  // Show conditional sections
-  if (isIncluded) {
-    elements.includedCallout.classList.remove('hidden');
-    elements.paypalActionCard.classList.add('hidden');
-  } else {
-    elements.includedCallout.classList.add('hidden');
-    elements.paypalActionCard.classList.remove('hidden');
-
-    // Prepopulate price & notes
-    const dollars = (analysis.amount_cents || 50000) / 100;
-    elements.proposedPrice.value = dollars.toFixed(2);
-    elements.merchantNotes.value = `Scope extension for ${state.currentProject ? state.currentProject.title : 'project'}: ${items.slice(0, 2).join(', ')}`;
-    elements.orderStatusBox.classList.add('hidden');
-  }
-}
-
-// ==========================================================================
-// Step 2: Merchant Approval & PayPal Order Generation
-// ==========================================================================
-async function approveAndCreatePayPalOrder() {
-  if (!state.currentScopeAnalysis) {
-    showToast('No active scope analysis to approve.', 'warning');
-    return;
-  }
-
-  const price = parseFloat(elements.proposedPrice.value);
-  const notes = elements.merchantNotes.value.trim();
-
-  if (isNaN(price) || price <= 0) {
-    showToast('Please enter a valid billable price.', 'warning');
-    return;
-  }
-
-  elements.btnApproveOrder.disabled = true;
-  elements.btnApproveOrder.innerHTML = `<div class="btn-spinner"></div> Creating PayPal Order v2...`;
-
-  try {
-    const response = await fetch(`/api/scope/${state.currentScopeAnalysis.id}/approve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount_cents: Math.round(price * 100),
-        currency: "USD",
-        merchant_notes: notes
-      })
-    });
-
-    if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(errData.detail || 'Failed to approve scope and generate PayPal Order.');
+    // Live character/word count on contract textarea
+    const contractInput = document.getElementById('input-contract');
+    if (contractInput) {
+        contractInput.addEventListener('input', () => {
+            const words = contractInput.value.trim().split(/\s+/).filter(Boolean).length;
+            const sub = document.getElementById('contract-word-count');
+            if (sub) {
+                sub.textContent = `${words} words | Baseline Brief`;
+            }
+        });
     }
-
-    state.currentOrder = await response.json();
-    renderOrderCreated(state.currentOrder);
-    
-    // Update audit entry
-    updateAuditEntry(state.currentScopeAnalysis.id, {
-      status: 'APPROVED',
-      orderId: state.currentOrder.paypal_order_id,
-      price: price
+}
+function setupKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+        // Only execute if not currently typing in a form input
+        const tag = e.target?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                executeScopeDiff();
+            }
+            return;
+        }
+        if (e.key === '1') {
+            loadScenario('db_migration');
+        }
+        else if (e.key === '2') {
+            loadScenario('sso_rbac');
+        }
+        else if (e.key === '3') {
+            loadScenario('minor_fix');
+        }
+        else if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
+        }
     });
-
-    showToast(`PayPal Order Generated: ${state.currentOrder.paypal_order_id}`, 'success');
-  } catch (err) {
-    console.error('PayPal Order Error:', err);
-    showToast(`Order creation error: ${err.message}`, 'error');
-  } finally {
-    elements.btnApproveOrder.disabled = false;
-    elements.btnApproveOrder.innerHTML = `
-      <svg class="btn-svg" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.784.784 0 0 1 .773-.654h6.315c2.903 0 5.033.724 6.16 2.095 1.05 1.278 1.27 3.09.654 5.385-.027.1-.06.204-.099.313-.807 3.018-2.905 4.885-6.236 4.885h-2.58a.784.784 0 0 0-.774.654l-.988 5.76a.64.64 0 0 1-.633.54z"/>
-      </svg>
-      Approve Terms & Create PayPal Order v2
-    `;
-  }
 }
-
-function renderOrderCreated(order) {
-  elements.orderStatusBox.classList.remove('hidden');
-  elements.orderIdCode.textContent = order.paypal_order_id || 'ORDER-SIMULATED';
-  elements.idempotencyKey.textContent = `idemp_${order.paypal_order_id ? order.paypal_order_id.slice(-8) : 'demo'}`;
-  
-  elements.orderStatusPill.className = 'status-pill status-approved';
-  elements.orderStatusPill.textContent = 'CREATED / AWAITING PAYMENT';
-
-  // PayPal Approve Link
-  const approveUrl = order.paypal_approve_url || `https://www.sandbox.paypal.com/checkoutnow?token=${order.paypal_order_id}`;
-  elements.approveUrlLink.href = approveUrl;
-  elements.approveUrlLink.innerHTML = `<span>Open PayPal Sandbox Checkout</span> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>`;
-
-  // Ready Capture Section
-  elements.captureSection.classList.remove('hidden');
-  elements.captureSuccessBox.classList.add('hidden');
-  elements.btnCapturePayment.disabled = false;
-}
-
-// ==========================================================================
-// Step 3: Capture PayPal Payment
-// ==========================================================================
-async function capturePayment() {
-  if (!state.currentScopeAnalysis) {
-    showToast('No active scope change to capture.', 'warning');
-    return;
-  }
-
-  const scopeId = state.currentScopeAnalysis.id;
-  elements.btnCapturePayment.disabled = true;
-  elements.btnCapturePayment.innerHTML = `<div class="btn-spinner"></div> Capturing via Orders v2...`;
-
-  try {
-    const response = await fetch(`/api/paypal/capture/${scopeId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+// Navigation View Switcher
+export function switchView(viewName) {
+    state.currentView = viewName;
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        const el = tab;
+        tab.classList.toggle('active', el.dataset.view === viewName);
     });
-
-    if (!response.ok) throw new Error('Capture failed via PayPal REST API.');
-    const captureResult = await response.json();
-
-    // Render success
-    elements.captureSection.classList.add('hidden');
-    elements.captureSuccessBox.classList.remove('hidden');
-    elements.captureIdCode.textContent = captureResult.paypal_capture_id || `CAP-${Date.now()}`;
-    elements.payerEmailCode.textContent = elements.merchantEmail.value || 'client@enterprise.com';
-
-    elements.orderStatusPill.className = 'status-pill status-paid';
-    elements.orderStatusPill.textContent = 'COMPLETED / PAID';
-
-    // Update Audit
-    updateAuditEntry(state.currentScopeAnalysis.id, {
-      status: 'PAID',
-      orderId: state.currentOrder ? state.currentOrder.paypal_order_id : '-'
+    document.querySelectorAll('.view-container').forEach(view => {
+        view.classList.toggle('active', view.id === `view-${viewName}`);
     });
-
-    showToast('Payment Captured Successfully via PayPal Orders v2!', 'success');
-  } catch (err) {
-    console.error('Capture Error:', err);
-    showToast(`Payment capture error: ${err.message}`, 'error');
-    elements.btnCapturePayment.disabled = false;
-    elements.btnCapturePayment.textContent = 'Retry Capture';
-  }
+    if (viewName === 'analytics') {
+        refreshLedgerTable();
+    }
 }
-
-// ==========================================================================
-// Audit Table & Export Tools
-// ==========================================================================
-function addToAuditLog(entry) {
-  state.auditHistory.unshift(entry);
-  renderAuditTable();
-  updateKPIMetrics();
+// Select Ingestion Channel
+export function selectChannel(channel) {
+    state.currentChannel = channel;
+    document.querySelectorAll('.ch-tab').forEach(btn => {
+        const el = btn;
+        btn.classList.toggle('active', el.dataset.channel === channel);
+    });
 }
-
-function updateAuditEntry(scopeId, updates) {
-  const index = state.auditHistory.findIndex(e => e.id === scopeId);
-  if (index !== -1) {
-    state.auditHistory[index] = { ...state.auditHistory[index], ...updates };
-    renderAuditTable();
-    updateKPIMetrics();
-  }
+// Load Pre-packaged Scenario
+export function loadScenario(presetKey) {
+    const p = PRESETS[presetKey];
+    if (!p)
+        return;
+    document.querySelectorAll('.scenario-pill').forEach(pill => {
+        const el = pill;
+        pill.classList.toggle('active', el.dataset.scenario === presetKey);
+    });
+    const clientEl = document.getElementById('input-client');
+    const emailEl = document.getElementById('input-email');
+    const contractEl = document.getElementById('input-contract');
+    const requestEl = document.getElementById('input-request');
+    if (clientEl)
+        clientEl.value = p.client_name;
+    if (emailEl)
+        emailEl.value = p.client_email;
+    if (contractEl)
+        contractEl.value = p.contract;
+    if (requestEl)
+        requestEl.value = p.request;
+    selectChannel(p.channel);
+    showToast(`Loaded "${p.client_name}" scenario`, 'info');
 }
-
-function renderAuditTable(filter = '') {
-  if (!elements.auditTableBody) return;
-
-  const filtered = state.auditHistory.filter(item => {
-    if (!filter) return true;
-    return item.projectName.toLowerCase().includes(filter) ||
-           item.classification.toLowerCase().includes(filter) ||
-           item.status.toLowerCase().includes(filter) ||
-           item.orderId.toLowerCase().includes(filter);
-  });
-
-  if (filtered.length === 0) {
-    elements.auditTableBody.innerHTML = `
-      <tr>
-        <td colspan="7" class="text-center py-4 text-muted">No matching audit records found.</td>
-      </tr>
+// Scope Diff Execution
+export async function executeScopeDiff() {
+    const clientName = document.getElementById('input-client')?.value.trim();
+    const clientEmail = document.getElementById('input-email')?.value.trim();
+    const contractSow = document.getElementById('input-contract')?.value.trim();
+    const clientRequest = document.getElementById('input-request')?.value.trim();
+    if (!contractSow || !clientRequest) {
+        showToast('Statement of Work and Client Request are required', 'warning');
+        return;
+    }
+    const btn = document.getElementById('btn-analyze');
+    const btnText = document.getElementById('btn-analyze-text');
+    const emptyState = document.getElementById('diff-empty-state');
+    const resultContainer = document.getElementById('diff-result-container');
+    const statusBadge = document.getElementById('diff-status-badge');
+    if (btn)
+        btn.disabled = true;
+    if (btnText)
+        btnText.innerHTML = '<span class="spinner"></span> Comparing Semantics...';
+    if (statusBadge) {
+        statusBadge.className = 'status-pill status-evaluating';
+        statusBadge.textContent = 'EVALUATING';
+    }
+    try {
+        const payload = {
+            client_name: clientName || "Enterprise Client",
+            client_email: clientEmail || "procurement@client.com",
+            contract_sow: contractSow,
+            client_request: clientRequest,
+            request_channel: state.currentChannel
+        };
+        const data = await ScopeGuardApi.analyzeScope(payload);
+        state.currentAnalysis = data;
+        renderScopeResults(data);
+        // Record into Audit Ledger
+        recordAuditEntry({
+            id: data.id || `AUD-${Date.now().toString(36).toUpperCase()}`,
+            timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            client: clientName || "Enterprise Client",
+            channel: state.currentChannel.toUpperCase(),
+            classification: data.classification,
+            confidence: `${(data.confidence_score * 100).toFixed(1)}%`,
+            amount: data.suggested_price,
+            status: data.classification === 'INCLUDED' ? 'WAIVED' : 'PENDING_ORDER'
+        });
+        if (emptyState)
+            emptyState.classList.add('hidden');
+        if (resultContainer)
+            resultContainer.classList.remove('hidden');
+        showToast(`Analysis complete: ${data.classification}`, 'success');
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : 'Error processing contract scope comparison';
+        console.error(err);
+        showToast(message, 'error');
+        if (statusBadge) {
+            statusBadge.className = 'status-pill status-ready';
+            statusBadge.textContent = 'READY';
+        }
+    }
+    finally {
+        if (btn)
+            btn.disabled = false;
+        if (btnText) {
+            btnText.innerHTML = `
+        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z"/>
+          <path d="M14 2V8H20"/>
+          <path d="M16 13H8"/>
+          <path d="M16 17H8"/>
+          <path d="M10 9H8"/>
+        </svg>
+        Run Contract Scope Diff Engine
+      `;
+        }
+    }
+}
+// Render Results to UI
+function renderScopeResults(data) {
+    const isExtra = (data.classification === 'EXTRA_PROPOSED' || data.classification === 'SCOPE_CREEP');
+    const banner = document.getElementById('verdict-banner');
+    const icon = document.getElementById('verdict-icon');
+    const title = document.getElementById('verdict-title');
+    const desc = document.getElementById('verdict-desc');
+    const conf = document.getElementById('verdict-confidence');
+    const statusBadge = document.getElementById('diff-status-badge');
+    if (isExtra) {
+        if (statusBadge) {
+            statusBadge.className = 'status-pill status-extra';
+            statusBadge.textContent = 'SCOPE_CREEP DETECTED';
+        }
+        if (banner) {
+            banner.className = 'verdict-banner banner-extra';
+        }
+        if (title)
+            title.textContent = 'SCOPE DEVIATION DETECTED — BILLABLE CHANGE ORDER';
+        if (desc)
+            desc.textContent = 'The client request exceeds the signed Statement of Work baseline.';
+        if (icon) {
+            icon.innerHTML = `
+        <svg class="verdict-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18A2 2 0 0 0 3.56 21H20.44A2 2 0 0 0 22.18 18L13.71 3.86A2 2 0 0 0 10.29 3.86Z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      `;
+        }
+    }
+    else {
+        if (statusBadge) {
+            statusBadge.className = 'status-pill status-inscope';
+            statusBadge.textContent = 'IN_SCOPE';
+        }
+        if (banner) {
+            banner.className = 'verdict-banner banner-inscope';
+        }
+        if (title)
+            title.textContent = 'IN-SCOPE DELIVERABLE — COVERED UNDER WARRANTY';
+        if (desc)
+            desc.textContent = 'The client request is fully covered under the existing contract agreement.';
+        if (icon) {
+            icon.innerHTML = `
+        <svg class="verdict-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12A10 10 0 1 1 11.21 2.04"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      `;
+        }
+    }
+    if (conf)
+        conf.textContent = `${(data.confidence_score * 100).toFixed(1)}%`;
+    const reasoningEl = document.getElementById('audit-reasoning');
+    if (reasoningEl)
+        reasoningEl.textContent = data.reasoning;
+    const clauseEl = document.getElementById('audit-clause');
+    if (clauseEl) {
+        const quote = data.relevant_sow_clause || data.contract_quote || 'Clause Citation: Scope of Work Section 2.1';
+        clauseEl.textContent = quote;
+    }
+    // Render Itemized Deliverables
+    const listEl = document.getElementById('audit-items');
+    if (listEl) {
+        listEl.innerHTML = '';
+        const deliverables = data.itemized_deliverables || data.itemized_scope || [];
+        if (deliverables.length === 0) {
+            const li = document.createElement('li');
+            li.textContent = '1. Enterprise delivery per contractual specifications.';
+            listEl.appendChild(li);
+        }
+        else {
+            deliverables.forEach((item, idx) => {
+                const li = document.createElement('li');
+                li.textContent = `${idx + 1}. ${item}`;
+                listEl.appendChild(li);
+            });
+        }
+    }
+    // Handle In-scope callout vs PayPal console
+    const inScopeCallout = document.getElementById('inscope-callout');
+    const paypalConsole = document.getElementById('paypal-console');
+    const orderVerification = document.getElementById('order-verification');
+    const captureSuccess = document.getElementById('capture-success');
+    if (orderVerification)
+        orderVerification.classList.add('hidden');
+    if (captureSuccess)
+        captureSuccess.classList.add('hidden');
+    if (isExtra) {
+        if (inScopeCallout)
+            inScopeCallout.classList.add('hidden');
+        if (paypalConsole)
+            paypalConsole.classList.remove('hidden');
+        const priceEl = document.getElementById('order-price');
+        const deliverableEl = document.getElementById('order-deliverable');
+        if (priceEl)
+            priceEl.value = (data.suggested_price || 2500.00).toFixed(2);
+        if (deliverableEl) {
+            const deliverables = data.itemized_deliverables || data.itemized_scope || [];
+            deliverableEl.value = deliverables.join('; ') || 'Contractual Change Order Deliverable';
+        }
+    }
+    else {
+        if (inScopeCallout)
+            inScopeCallout.classList.remove('hidden');
+        if (paypalConsole)
+            paypalConsole.classList.add('hidden');
+    }
+}
+// Initiate PayPal Orders v2 REST Order Creation
+export async function initiatePayPalOrder() {
+    const priceInput = document.getElementById('order-price')?.value;
+    const deliverable = document.getElementById('order-deliverable')?.value;
+    const clientName = document.getElementById('input-client')?.value || "Enterprise Client";
+    const clientEmail = document.getElementById('input-email')?.value || "procurement@client.com";
+    const amount = parseFloat(priceInput);
+    if (isNaN(amount) || amount <= 0) {
+        showToast('Please enter a valid authorized price', 'warning');
+        return;
+    }
+    const btn = document.getElementById('btn-create-order');
+    const btnText = document.getElementById('btn-create-order-text');
+    if (btn)
+        btn.disabled = true;
+    if (btnText)
+        btnText.innerHTML = '<span class="spinner"></span> Creating Order via v2/checkout/orders...';
+    try {
+        const payload = {
+            client_name: clientName,
+            client_email: clientEmail,
+            item_name: deliverable || "Contractual Change Order",
+            amount: amount,
+            currency: "USD",
+            scope_analysis_id: state.currentAnalysis ? state.currentAnalysis.id : undefined
+        };
+        const data = await ScopeGuardApi.createOrder(payload);
+        state.activeOrderId = data.id;
+        state.activeOrderData = data;
+        // Render Order Details
+        const idDisplay = document.getElementById('order-id-display');
+        const amountDisplay = document.getElementById('order-amount-display');
+        const checkoutLink = document.getElementById('order-checkout-link');
+        if (idDisplay)
+            idDisplay.textContent = data.id;
+        if (amountDisplay)
+            amountDisplay.textContent = `$${data.amount.toFixed(2)} ${data.currency}`;
+        if (checkoutLink && data.approve_url) {
+            checkoutLink.href = data.approve_url;
+            checkoutLink.classList.remove('hidden');
+        }
+        const verificationEl = document.getElementById('order-verification');
+        if (verificationEl)
+            verificationEl.classList.remove('hidden');
+        const statusBadge = document.getElementById('diff-status-badge');
+        if (statusBadge) {
+            statusBadge.className = 'status-pill status-created';
+            statusBadge.textContent = 'ORDER_CREATED';
+        }
+        showToast(`PayPal Order Created: ${data.id}`, 'success');
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to create PayPal Order';
+        console.error(err);
+        showToast(message, 'error');
+    }
+    finally {
+        if (btn)
+            btn.disabled = false;
+        if (btnText) {
+            btnText.innerHTML = `
+        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        Authorize & Generate PayPal Order
+      `;
+        }
+    }
+}
+// Execute PayPal Capture (POST /v2/checkout/orders/{id}/capture)
+export async function executePayPalCapture() {
+    if (!state.activeOrderId) {
+        showToast('No active PayPal order to capture', 'warning');
+        return;
+    }
+    const btn = document.getElementById('btn-capture-order');
+    const btnText = document.getElementById('btn-capture-order-text');
+    if (btn)
+        btn.disabled = true;
+    if (btnText)
+        btnText.innerHTML = '<span class="spinner"></span> Capturing Funds...';
+    try {
+        const data = await ScopeGuardApi.captureOrder(state.activeOrderId);
+        state.activeCaptureData = data;
+        // Display Verified Receipt
+        const capIdDisplay = document.getElementById('receipt-capture-id');
+        const amtDisplay = document.getElementById('receipt-amount');
+        const feeDisplay = document.getElementById('receipt-fee');
+        const payerDisplay = document.getElementById('receipt-payer');
+        const captureSuccess = document.getElementById('capture-success');
+        if (capIdDisplay)
+            capIdDisplay.textContent = data.capture_id || `CAP-${Date.now().toString(36).toUpperCase()}`;
+        if (amtDisplay)
+            amtDisplay.textContent = `$${data.amount.toFixed(2)} USD`;
+        if (feeDisplay)
+            feeDisplay.textContent = `$${(data.fee || 0).toFixed(2)} USD`;
+        if (payerDisplay)
+            payerDisplay.textContent = data.payer_email || (document.getElementById('input-email')?.value || 'buyer@client.com');
+        if (captureSuccess)
+            captureSuccess.classList.remove('hidden');
+        const statusBadge = document.getElementById('diff-status-badge');
+        if (statusBadge) {
+            statusBadge.className = 'status-pill status-paid';
+            statusBadge.textContent = 'FUNDS_CAPTURED';
+        }
+        // Update KPI state
+        state.kpi.proposalsCaptured += 1;
+        state.kpi.settlementVolume += data.amount;
+        renderKpis();
+        // Update Ledger record
+        updateLedgerStatus(state.activeOrderId, 'CAPTURED');
+        showToast('PayPal settlement captured and verified', 'success');
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : 'Capture execution failed';
+        console.error(err);
+        showToast(message, 'error');
+    }
+    finally {
+        if (btn)
+            btn.disabled = false;
+        if (btnText) {
+            btnText.innerHTML = `
+        <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12A10 10 0 1 1 11.21 2.04"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        Simulate Immediate Client Capture
+      `;
+        }
+    }
+}
+// KPI Ribbon Rendering
+function renderKpis() {
+    const elContracts = document.getElementById('kpi-active-contracts');
+    const elCaptured = document.getElementById('kpi-proposals-captured');
+    const elVol = document.getElementById('kpi-settlement-vol');
+    const elScore = document.getElementById('kpi-compliance-score');
+    if (elContracts)
+        elContracts.textContent = state.kpi.activeContracts.toString();
+    if (elCaptured)
+        elCaptured.textContent = state.kpi.proposalsCaptured.toString();
+    if (elVol)
+        elVol.textContent = `$${state.kpi.settlementVolume.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    if (elScore)
+        elScore.textContent = `${state.kpi.complianceScore}%`;
+}
+// Initial Audit Ledger Records
+function loadInitialLedger() {
+    state.auditLog = [
+        {
+            id: "AUD-8849-AC",
+            timestamp: "2026-10-04 14:22:10",
+            client: "Vertex Systems Corp",
+            channel: "SLACK",
+            classification: "EXTRA_PROPOSED",
+            confidence: "98.4%",
+            amount: 4200.00,
+            status: "CAPTURED"
+        },
+        {
+            id: "AUD-7731-FB",
+            timestamp: "2026-10-03 09:15:42",
+            client: "Meridian Financial",
+            channel: "JIRA",
+            classification: "INCLUDED",
+            confidence: "99.1%",
+            amount: 0.00,
+            status: "WAIVED"
+        },
+        {
+            id: "AUD-6510-NX",
+            timestamp: "2026-10-01 17:40:05",
+            client: "Quantum Commerce Inc.",
+            channel: "EMAIL",
+            classification: "EXTRA_PROPOSED",
+            confidence: "97.6%",
+            amount: 3750.00,
+            status: "CAPTURED"
+        }
+    ];
+    refreshLedgerTable();
+}
+function recordAuditEntry(entry) {
+    state.auditLog.unshift(entry);
+    refreshLedgerTable();
+}
+function updateLedgerStatus(_orderId, newStatus) {
+    if (state.auditLog.length > 0) {
+        state.auditLog[0].status = newStatus;
+        refreshLedgerTable();
+    }
+}
+export function refreshLedgerTable() {
+    const tbody = document.getElementById('ledger-tbody');
+    if (!tbody)
+        return;
+    const query = (document.getElementById('ledger-search')?.value || '').toLowerCase();
+    tbody.innerHTML = '';
+    const filtered = state.auditLog.filter(item => item.client.toLowerCase().includes(query) ||
+        item.id.toLowerCase().includes(query) ||
+        item.classification.toLowerCase().includes(query));
+    filtered.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+      <td><code>${row.id}</code></td>
+      <td>${row.timestamp}</td>
+      <td><strong>${row.client}</strong></td>
+      <td><span class="step-tag">${row.channel}</span></td>
+      <td><span class="status-pill ${row.classification === 'INCLUDED' ? 'status-inscope' : 'status-extra'}">${row.classification}</span></td>
+      <td><code>${row.confidence}</code></td>
+      <td><strong>$${row.amount.toFixed(2)}</strong></td>
+      <td><span class="status-pill ${row.status === 'CAPTURED' ? 'status-paid' : (row.status === 'WAIVED' ? 'status-ready' : 'status-created')}">${row.status}</span></td>
     `;
-    return;
-  }
-
-  elements.auditTableBody.innerHTML = filtered.map(item => {
-    let statusClass = 'status-idle';
-    if (item.status === 'INCLUDED') statusClass = 'status-included';
-    if (item.status === 'EXTRA_PROPOSED') statusClass = 'status-extra';
-    if (item.status === 'APPROVED' || item.status === 'MERCHANT_APPROVED') statusClass = 'status-approved';
-    if (item.status === 'PAID') statusClass = 'status-paid';
-
-    return `
-      <tr>
-        <td><span class="text-dim">${item.timestamp}</span></td>
-        <td><strong>${escapeHtml(item.projectName)}</strong></td>
-        <td><span class="channel-chip">${item.channel.toUpperCase()}</span></td>
-        <td>
-          <span class="status-badge ${item.classification === 'INCLUDED' ? 'status-included' : 'status-extra'}">
-            ${item.classification}
-          </span>
-        </td>
-        <td><strong>$${item.price.toFixed(2)}</strong></td>
-        <td><span class="status-badge ${statusClass}">${item.status}</span></td>
-        <td>
-          <button class="btn btn-outline btn-sm" onclick="inspectAuditRecord('${item.id}')">
-            Inspect JSON
-          </button>
-        </td>
-      </tr>
+        tbody.appendChild(tr);
+    });
+}
+function setupLedgerFilter() {
+    const search = document.getElementById('ledger-search');
+    if (search) {
+        search.addEventListener('input', () => refreshLedgerTable());
+    }
+}
+// Export Ledger as CSV
+export function exportLedgerCsv() {
+    const headers = ["Audit_ID", "Timestamp", "Client", "Channel", "Classification", "Confidence", "Amount_USD", "Settlement_Status"];
+    const rows = state.auditLog.map(r => [
+        r.id,
+        `"${r.timestamp}"`,
+        `"${r.client}"`,
+        r.channel,
+        r.classification,
+        r.confidence,
+        r.amount.toFixed(2),
+        r.status
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `scopeguard_audit_ledger_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Ledger CSV exported successfully", "success");
+}
+// Webhook Dispatcher
+export function dispatchWebhook(eventType) {
+    const viewer = document.getElementById('webhook-json-viewer');
+    const list = document.getElementById('webhook-event-list');
+    const now = new Date().toISOString();
+    const eventId = `WH-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+    let payload = {};
+    if (eventType === 'PAYMENT.CAPTURE.COMPLETED') {
+        payload = {
+            id: eventId,
+            event_version: "1.0",
+            create_time: now,
+            resource_type: "capture",
+            event_type: "PAYMENT.CAPTURE.COMPLETED",
+            summary: "Payment capture completed successfully for Change Order deliverable",
+            resource: {
+                id: `CAP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                status: "COMPLETED",
+                amount: {
+                    value: (state.currentAnalysis ? state.currentAnalysis.suggested_price : 2500.00).toFixed(2),
+                    currency_code: "USD"
+                },
+                seller_protection: { status: "ELIGIBLE" }
+            }
+        };
+    }
+    else {
+        payload = {
+            id: eventId,
+            event_version: "1.0",
+            create_time: now,
+            resource_type: "checkout-order",
+            event_type: "CHECKOUT.ORDER.APPROVED",
+            summary: "Buyer authorized PayPal Checkout order",
+            resource: {
+                id: `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                status: "APPROVED",
+                intent: "CAPTURE",
+                payer: { email_address: "procurement@apexlogistics.com" }
+            }
+        };
+    }
+    if (viewer)
+        viewer.textContent = JSON.stringify(payload, null, 2);
+    if (list) {
+        const item = document.createElement('div');
+        item.className = 'webhook-item';
+        item.innerHTML = `
+      <div class="item-head">
+        <span class="event-badge ${eventType.includes('CAPTURE') ? 'badge-green' : 'badge-blue'}">${eventType}</span>
+        <span class="item-time">${now.substring(11, 19)}</span>
+      </div>
+      <div class="item-body">Delivered to endpoint <code>/api/webhooks/paypal</code> (Status: 200 OK)</div>
     `;
-  }).join('');
+        list.insertBefore(item, list.firstChild);
+    }
+    showToast(`Simulated Webhook Dispatched: ${eventType}`, 'success');
 }
-
-function updateKPIMetrics() {
-  const total = state.auditHistory.length;
-  const includedCount = state.auditHistory.filter(i => i.classification === 'INCLUDED').length;
-  const extraTotal = state.auditHistory.reduce((sum, i) => sum + (i.price || 0), 0);
-  const paidCount = state.auditHistory.filter(i => i.status === 'PAID').length;
-  const totalOrders = state.auditHistory.filter(i => i.price > 0).length;
-
-  if (elements.kpiTotalScans) elements.kpiTotalScans.textContent = total;
-  if (elements.kpiCreepPrevented) elements.kpiCreepPrevented.textContent = `$${(includedCount * 150).toLocaleString()}`;
-  if (elements.kpiExtraProposed) elements.kpiExtraProposed.textContent = `$${extraTotal.toLocaleString()}`;
-  if (elements.kpiCaptureRate) elements.kpiCaptureRate.textContent = totalOrders > 0 ? `${Math.round((paidCount / totalOrders) * 100)}%` : '100%';
+// Contract Vault Loader
+export function loadVaultContract(key) {
+    switchView('workbench');
+    loadScenario(key);
 }
-
-// Modal Inspector
-function inspectAuditRecord(recordId) {
-  const record = state.auditHistory.find(r => r.id === recordId) || {
-    id: recordId,
-    timestamp: new Date().toISOString(),
-    details: "ScopeGuard Audit Trace Record"
-  };
-
-  elements.modalJson.textContent = JSON.stringify(record, null, 2);
-  elements.auditModal.classList.remove('hidden');
+// Modal Controllers
+export function openIntegrationModal() {
+    document.getElementById('modal-integration')?.classList.remove('hidden');
 }
-
-function closeModal() {
-  elements.auditModal.classList.add('hidden');
+export function openQrModal() {
+    document.getElementById('modal-qr')?.classList.remove('hidden');
 }
-
-// CSV Export Helper
-function exportAuditLogCSV() {
-  const headers = ["ID", "Timestamp", "Project Name", "Channel", "Classification", "Price (USD)", "Status", "Order ID", "Explanation"];
-  const rows = state.auditHistory.map(r => [
-    r.id,
-    r.timestamp,
-    `"${r.projectName.replace(/"/g, '""')}"`,
-    r.channel,
-    r.classification,
-    r.price,
-    r.status,
-    r.orderId,
-    `"${(r.explanation || '').replace(/"/g, '""')}"`
-  ]);
-
-  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `scopeguard_audit_${new Date().toISOString().slice(0, 10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  showToast('Audit Log exported to CSV', 'success');
+export function hideModal(modalId) {
+    document.getElementById(modalId)?.classList.add('hidden');
 }
-
-// Copy to Clipboard Utility
-function copyText(elementId) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const text = el.textContent || el.innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    showToast(`Copied to clipboard: ${text}`, 'info');
-  }).catch(() => {
-    showToast('Failed to copy to clipboard', 'error');
-  });
+// Clipboard Helper
+export function copyValue(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el)
+        return;
+    const text = el.value || el.textContent || '';
+    copyText(text);
 }
-
-function escapeHtml(str) {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard', 'info');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
 }
+// Enterprise Toast System
+export function showToast(message, type = 'info') {
+    const root = document.getElementById('toast-root');
+    if (!root)
+        return;
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+    <div class="toast-dot"></div>
+    <span>${message}</span>
+  `;
+    root.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }, 3500);
+}
+// Expose functions to global window object for HTML onclick handlers
+window.switchView = switchView;
+window.selectChannel = selectChannel;
+window.loadScenario = loadScenario;
+window.executeScopeDiff = executeScopeDiff;
+window.initiatePayPalOrder = initiatePayPalOrder;
+window.executePayPalCapture = executePayPalCapture;
+window.exportLedgerCsv = exportLedgerCsv;
+window.dispatchWebhook = dispatchWebhook;
+window.loadVaultContract = loadVaultContract;
+window.openIntegrationModal = openIntegrationModal;
+window.openQrModal = openQrModal;
+window.hideModal = hideModal;
+window.copyValue = copyValue;
+window.copyText = copyText;
+window.showToast = showToast;

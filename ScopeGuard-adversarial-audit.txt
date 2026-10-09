@@ -1,0 +1,1192 @@
+ScopeGuard — Final Adversarial Audit
+====================================
+
+Audit date: October 6, 2026
+Repository: Pr1meGG/paypal-ai-hackathon
+Audited snapshot: main at c633b0010eece9d1733ffa6832cc15d6e8279d0f
+
+RECOMMENDATION
+--------------
+
+PIVOT.
+
+Preserve the useful contract-to-payment concept, but reposition it around a
+narrow, evidence-backed amendment workflow. The current “mission-critical
+enterprise governance” proposition exceeds both the implementation and the
+demonstrated differentiation.
+
+Evidence labels:
+  [A] VERIFIED — directly supported by inspected source, executed offline
+      probes, or retrieved primary sources.
+  [B] REASONABLE INFERENCE — judgment grounded in that evidence.
+  [C] UNVERIFIED / SPECULATIVE — requires additional evidence.
+
+Verification boundary:
+  Backend probes executed pinned source in memory with isolated SQLite,
+  injected configuration, and blocked or mocked provider calls. Static
+  hosting was omitted from that harness. Actual OpenAI responses, PayPal
+  sandbox transactions, browser interaction, and a clean-checkout
+  installation are UNKNOWN — NOT VERIFIED. This was a read-only audit.
+
+
+1. EXECUTIVE VERDICT
+--------------------
+
+ScopeGuard contains a real, compact backend prototype and substantial
+frontend styling. Its most important guarantees currently fail:
+
+1. [A] Payment failures become successful financial records. Missing
+   credentials, unknown orders, and rejected capture attempts can produce
+   COMPLETED responses and persisted PAID classifications.
+
+2. [A] The shipped frontend has two independent integration failures. HTML
+   loads module-exporting JavaScript as a classic script; all 47 unique
+   literal DOM IDs targeted by that JavaScript are absent from the HTML.
+
+3. [A] AI output crosses into financial authority. A controlled
+   model-output probe containing classification="PAID" was accepted and
+   persisted without a PayPal order or capture.
+
+4. [A] Default analysis does not reliably respect the contract. Explicitly
+   included QuickBooks work was classified as extra. The supplied
+   database-migration scenario was classified as included despite explicit
+   exclusion.
+
+5. [A] The proposed category already has direct competitors. EasyScope,
+   ChangeVerdict, and Boundr publicly advertise closely overlapping
+   workflows.
+
+[B] These findings support a strategic pivot, rather than further investment
+in dashboard breadth. Repairing the implementation alone would still leave
+weak differentiation. The surviving opportunity is to make agreed changes,
+commercial approval, and payment evidence reliably correspond for one
+specific customer segment.
+
+
+2. CURRENT REPOSITORY REALITY
+-----------------------------
+
+INVENTORY
+
+Backend:
+  app/main.py, config.py, db.py, models.py, schemas.py
+  FastAPI, SQLAlchemy, Pydantic
+
+Routers:
+  app/routers/projects.py
+  app/routers/scope.py
+  app/routers/paypal.py
+
+Services:
+  app/services/ai.py
+  app/services/paypal.py
+
+Frontend:
+  app/static/index.html
+  app/static/styles.css
+  app/static/app.js
+  app/static/ts/app.ts
+  app/static/ts/types.ts
+
+Python tests:
+  Six test functions in tests/test_scopeguard.py
+
+Browser tests:
+  tests/example.spec.ts tests the Playwright website, not ScopeGuard.
+
+Build/configuration:
+  package.json, package-lock.json, requirements.txt, .env.example,
+  .gitignore, playwright.config.ts
+
+Documentation:
+  README.md, AGENTS.md, LOCAL_SETUP.md, PAYPAL_SETUP.md,
+  HACKATHON_BRIEF.md, JUDGES_AND_STRATEGY.md,
+  KITTRUST_IMPLEMENTATION_PLAN.md, ORCHESTRATION.log,
+  PAYPAL_RESOURCES/INDEX.md, PAYPAL_RESOURCES/SOURCES.md
+
+License:
+  MIT license file; package metadata says ISC.
+
+Repository size:
+  114 tracked files: 17 application files, 78 files under .claude/,
+  and 19 other files.
+
+CI/deployment evidence:
+  No GitHub Actions runs or current-commit check runs. GitHub deployment
+  registry was empty.
+
+[A] The repository implements ScopeGuard. Its documentation also describes
+ScopeBridge, an older RTO/lead-follow-up system, and a paused KitTrust
+equipment-rental direction.
+
+[C] Separately hosted deployment: UNKNOWN — NOT VERIFIED. An empty GitHub
+deployment registry does not establish that no external deployment exists.
+
+IMPLEMENTATION REALITY MATRIX
+
+Capability                         Documented  Implemented  Wired  Tested  Actually verified
+---------------------------------  ----------  -----------  -----  ------  -----------------
+Project/SOW text storage           Yes         Yes          API    API     Offline persistence
+Scope analysis                     Yes         AI +        API;   Three   Fallback and server
+                                               keyword      UI     easy    validation
+                                               fallback     blocked cases
+Verbatim evidence grounding       Yes         No           Raw    No      Fabricated evidence
+                                                            output         accepted
+                                                            passed
+Merchant price approval            Yes         Yes          API;   Happy   No identity/state
+                                                            UI     path    guards
+                                                            blocked
+PayPal order creation              Yes         Yes          API    Fallback Provider success
+                                                                        assertions unverified
+Buyer approval                     Yes         Partial      Incomplete No     Sandbox approval
+                                                            state          unverified
+Capture verification               Yes         Inadequate   API    Tests   Failure-to-PAID
+                                                            wiring  accept  reproduced
+                                                                    synthetic
+                                                                    success
+Retry-safe idempotency             Yes         No           Headers No     Keys change on retry
+Webhooks                           Yes         No           No     No      No webhook route
+Scope ledger                       Yes         Mutable      Divergent Basic  Immutability absent
+Financial KPIs                     Yes         Hardcoded    Frontend Tests  Empty DB reports
+                                               baseline     does   assert  revenue
+                                                            not     baseline
+                                                            fetch
+                                                            API
+Slack/Jira/email ingestion         Suggested  No           Metadata Manual  Connectors absent
+Contract vault                     Yes         Static       Presets No      Document lifecycle
+                                               presets      mismatch       absent
+Browser E2E                        Implied    No           —      No      Not verified
+
+
+3. ARCHITECTURE REALITY
+------------------------
+
+ACTUAL ARCHITECTURE
+
+  Manual SOW/request input
+          |
+          v
+  FastAPI scope router
+          |
+          v
+  One OpenAI JSON request, or keyword fallback
+          |
+          v
+  Project + mutable ScopeChange rows
+          |
+          v
+  Price-setting/order endpoint
+          |
+          v
+  PayPal OAuth + Orders v2 helper
+          |
+          v
+  Capture endpoint
+          |
+          v
+  Local classification, history projection, KPI sums
+
+[A] This is a synchronous, single-merchant application. Payments use one
+globally configured PayPal account. There is no implemented autonomous agent
+loop, multi-merchant onboarding, document-processing pipeline, or separate
+transaction ledger.
+
+EXECUTION TRACES
+
+Workbench submission:
+  POST /api/scope/analyze creates a new Project every time, commits it, then
+  calls analyze_scope. It does not match an existing baseline despite the
+  “provision or match” comment.
+
+Analysis persistence:
+  Model/fallback output is converted to the broad ScopeStatus enum and
+  stored. That enum includes financial states such as PAID.
+
+Commercial approval:
+  Direct order creation accepts caller-supplied price and currency, optionally
+  updates a scope row, and sets MERCHANT_APPROVED. No authenticated merchant
+  identity is established.
+
+Order creation:
+  The helper obtains an OAuth token and posts a CAPTURE-intent order. The
+  router catches exceptions and manufactures an order ID and sandbox-looking
+  checkout URL.
+
+Buyer return:
+  /api/paypal/return?token=... renders a success page. It does not verify the
+  token, fetch order state, or record buyer approval.
+
+Capture:
+  The helper posts to PayPal and extracts the first capture ID. Routers ignore
+  payment verification requirements and can mark the row paid after
+  exceptions.
+
+History:
+  Returns up to 100 scope rows. Channel is always “Slack”; an order ID alone
+  is projected as “AUTHORIZED”.
+
+Browser ledger:
+  Initializes fabricated sample rows. The defined history-fetch method is not
+  used to hydrate it.
+
+Browser capture attribution:
+  updateLedgerStatus(_orderId, ...) ignores the order ID and updates the
+  newest ledger entry.
+
+Webhook inspector:
+  Constructs random browser payloads and displays “Delivered ... 200 OK”. No
+  network dispatch or backend receiver exists.
+
+Contract vault:
+  Loads hardcoded examples. No signed-document verification, upload
+  processing, versioning, or amendment incorporation exists.
+
+STRUCTURAL CONSEQUENCES
+
+- [A] Scope classification and payment lifecycle share one mutable field.
+- [A] Raw PayPal evidence, actual payer information, actual fees, approval
+  actors, and request-attempt history are not durably represented.
+- [A] Direct analyses fragment the same customer/project into separate
+  records.
+- [A] Paid amendments do not update the contract baseline.
+- [B] Consequently, this architecture cannot substantiate its “immutable
+  compliance ledger” or ongoing contract-governance claims.
+
+SQLite and vanilla frontend technology are reasonable choices for a
+hackathon. The blocking issue is the integrity of the connections between
+them.
+
+
+4. AI REALITY
+-------------
+
+AI QUESTIONS ANSWERED
+
+1. What model integration exists?
+   [A] OpenAI Chat Completions, default model gpt-4o-mini.
+
+2. Is Anthropic implemented?
+   [A] No. Other provider settings fall through to the heuristic.
+
+3. Is analysis multi-stage?
+   [A] One prompt and one JSON response.
+
+4. Is there retrieval or clause indexing?
+   [A] No. Full supplied text is placed in the request.
+
+5. Does fallback compare contractual meaning?
+   [A] Classification depends on request keywords; contract text supplies
+       superficial quote fragments.
+
+6. Are evidence quotes validated?
+   [A] No substring/span validation or clause-reference verification.
+
+7. Can it abstain?
+   [A] No supported uncertainty outcome. Controlled UNCERTAIN output caused
+       HTTP 500.
+
+8. Are mixed requests independently classified?
+   [A] One overall verdict; itemized strings have no per-item evidence or
+       classification schema.
+
+9. Where does pricing come from?
+   [A] Model-invented “fair market” prices, or $250 per matched keyword.
+
+10. Is confidence calibrated?
+    [A] HIGH maps to 0.95, MEDIUM to 0.80, otherwise 0.60; no calibration
+        evidence.
+
+11. Is financial output constrained?
+    [A] No. classification is a plain string subsequently accepted against
+        an enum containing financial states.
+
+12. What happens on model failure?
+    [A] Silent semantic degradation to the heuristic; output retains
+        apparent high confidence.
+
+13. Is prompt-injection resistance demonstrated?
+    [C] UNKNOWN — NOT VERIFIED. Controlled output probes establish
+        inadequate validation, not successful exploitation of a live model.
+
+14. Is AI quality evaluated?
+    [A] Existing tests cover three friendly examples, with no counterfactual
+        grounding, ambiguity, citation, or adversarial assertions.
+
+15. Is AI necessary?
+    [B] Potentially useful for interpreting unstructured, mixed requests.
+        The current default demo can run without a model, so meaningful AI
+        benefit remains unproved.
+
+VERIFIED FAILURES
+
+Counterfactual grounding test:
+
+  Request: “Please add QuickBooks sync.”
+
+  Contract: “QuickBooks sync is included.”
+    Result: EXTRA_PROPOSED, $750
+
+  Contract: “QuickBooks sync is excluded.”
+    Result: EXTRA_PROPOSED, $750
+
+[A] Reversing the contractual boundary did not reverse the verdict.
+
+Supplied preset tests:
+
+  Database migration:
+    Contractual boundary: Legacy migration explicitly excluded.
+    Result: INCLUDED, $0, HIGH.
+
+  SSO/RBAC:
+    Contractual boundary: Separate authorization of $3,500 specified.
+    Result: EXTRA_PROPOSED, $1,750, HIGH.
+
+  Minor fix:
+    Contractual boundary: Warranty fixes included.
+    Result: INCLUDED, $0, HIGH.
+
+Financial-state injection:
+
+  A controlled result containing:
+
+    classification="PAID"
+    evidence_quote="THIS QUOTE IS NOT IN THE SOW"
+    suggested_price_usd=12345.67
+
+  was persisted as paid, with no order or capture identifier.
+
+[B] AI should assist with evidence and proposed amendments. The server must
+independently own commercial and payment state.
+
+
+5. PAYPAL REALITY
+-----------------
+
+WHAT IS GENUINELY IMPLEMENTED
+
+[A] app/services/paypal.py contains:
+
+- OAuth client-credentials exchange.
+- Orders v2 creation with intent="CAPTURE".
+- Approval-link extraction.
+- Order capture.
+- Order-details retrieval, currently unused by application routes.
+- Request timeouts.
+- Server-side credential access.
+
+This is substantive integration scaffolding. Successful external execution
+remains UNKNOWN — NOT VERIFIED.
+
+COMPARISON WITH CURRENT OFFICIAL BEHAVIOR
+
+Official PayPal behavior:
+  Buyer approval is required for this redirect checkout flow before capture.
+
+ScopeGuard behavior:
+  Local routes do not establish buyer approval; rejected capture can become
+  paid.
+
+Official PayPal behavior:
+  Capture defaults to Prefer: return=minimal.
+
+ScopeGuard behavior:
+  Helper expects nested capture details but does not request full
+  representation or recover missing details.
+
+Official PayPal behavior:
+  Capture status distinguishes completed, pending, declined, failed, and
+  refunded.
+
+ScopeGuard behavior:
+  Router returns COMPLETED independently of those distinctions.
+
+Official PayPal behavior:
+  Retrying an operation requires reuse of its idempotency key.
+
+ScopeGuard behavior:
+  Fresh UUID generated on every call.
+
+Official PayPal behavior:
+  Actual capture fees are available in seller receivable breakdown.
+
+ScopeGuard behavior:
+  Router calculates a fixed formula instead.
+
+Official PayPal behavior:
+  Webhooks require receipt and authenticity verification.
+
+ScopeGuard behavior:
+  No receiver; browser constructs simulated events.
+
+Official PayPal behavior:
+  Currency codes and precision have specific constraints.
+
+ScopeGuard behavior:
+  Arbitrary currency strings accepted; all amounts formatted with two
+  decimals.
+
+ADDITIONAL FINDINGS
+
+- [A] OAuth token caching is claimed but absent. _cached_token is unused;
+  each operation obtains another token.
+- [A] Return/cancel URLs default to localhost:8000. README runs the
+  application on port 8080.
+- [A] The return page announces successful “authorization” for arbitrary
+  supplied tokens.
+- [A] CAPTURE-intent checkout does not implement the equipment-rental
+  authorization/partial-capture/void workflow described elsewhere.
+- [A] Refund, void, and reconciliation workflows are absent.
+- [A] No application runtime use of PayPal MCP or an agent toolkit is
+  implemented.
+
+Current official MCP documentation distinguishes sandbox endpoints such as
+https://mcp.sandbox.paypal.com/sse from production endpoints. PAYPAL_SETUP.md
+supplies the production URL in its sandbox-oriented discussion.
+
+[B] Adding MCP would not repair payment integrity or create differentiation
+by itself. Direct REST integration is valid for this hackathon.
+
+
+6. FINANCIAL SAFETY
+-------------------
+
+ASSESSMENT: FAILED.
+
+These are reproduced application-integrity failures. The probes did not move
+money or demonstrate a vulnerability in PayPal.
+
+Invariant: Failed order creation must remain failed.
+Result: Missing credentials produced a manufactured ORDER-PP-... ID and HTTP
+        200 CREATED response.
+
+Invariant: Failed capture must not become paid.
+Result: Missing credentials produced HTTP 200 COMPLETED and persisted PAID.
+
+Invariant: Capture requires an appropriate order and approved commercial
+           state.
+Result: Legacy capture changed an INCLUDED, $0 record with no order into PAID.
+
+Invariant: Unknown orders must not produce receipts.
+Result: Unknown order returned a fabricated $500 completed receipt.
+
+Invariant: Pending funds must remain pending.
+Result: Mocked €1 pending capture was reported as a completed $750 USD
+        payment.
+
+Invariant: Capture amount, currency, and reference must match approved terms.
+Result: Wrong amount, currency, and reference were ignored.
+
+Invariant: Missing capture evidence must not create a contradictory state.
+Result: Documented minimal response caused HTTP 500 after committing PAID with
+        no capture ID.
+
+Invariant: Paid records must not silently change commercial terms.
+Result: Recreating an order changed $750 to $990, replaced the order, and
+        retained the old capture ID.
+
+Invariant: Amount/currency input must be valid.
+Result: $0.001 and ZZZZ were accepted; persisted amount became zero cents.
+
+Invariant: Financial state must be independent of model verdict.
+Result: Controlled PAID model output directly entered the database.
+
+IDEMPOTENCY AND RETRIES
+
+[A] Repeated create and capture helper calls generated different
+PayPal-Request-Id values.
+
+[B] The application lacks retry-safe operation identity, durable attempt
+tracking, and recovery for “provider succeeded but application timed out.”
+PayPal may still reject duplicate capture of an already captured order; this
+audit does not establish that the same order was double-charged.
+
+FINANCIAL TRUTH IS ALSO DISTORTED DOWNSTREAM
+
+- History calls an order AUTHORIZED merely because an order ID exists.
+- Fees and payer email can be invented rather than extracted.
+- KPIs sum mutable commercial amounts rather than verified capture amounts.
+- Currency-specific totals are not separated.
+- Frontend capture attribution updates the newest ledger entry, regardless of
+  order identity.
+
+AUTHORITY AND ACCESS
+
+[A] The audited routes have no authentication or ownership checks. Project
+listing exposes stored briefs; payment-changing routes are callable without a
+merchant identity.
+
+[B] A deployed instance therefore lacks the authority boundary required by
+its human-approval promise. PayPal’s buyer checks remain separate and cannot
+substitute for application authorization.
+
+
+7. PRODUCT STRENGTH
+-------------------
+
+WHAT PROBLEM IS CREDIBLE?
+
+[B] Fixed-fee service businesses can absorb additional work because a client
+request is accepted before its price and schedule implications are agreed.
+
+That is understandable and commercially relevant. It does not establish the
+README’s claimed 12–18% annual revenue loss, willingness to buy ScopeGuard,
+
+WHERE THE PROPOSITION WEAKENS
+
+Audience:
+  Freelancers, agencies, consultancies, enterprise engineering teams, and
+  procurement departments are combined without a demonstrated initial
+  segment.
+
+Main benefit:
+  The pitch conflates interpretation, negotiation, authorization, payment,
+  and compliance.
+
+Workflow fit:
+  Manual paste and manual checkout add work; passive ingestion is advertised
+  but absent.
+
+Buyer relationship:
+  A confident “out of scope” label can increase disagreement if its evidence
+  is wrong.
+
+Pricing:
+  Contract terms, rate cards, effort, and customer agreement should determine
+  charges; keyword count does not.
+
+Enterprise fit:
+  No tenant isolation, authenticated roles, document lifecycle, procurement
+  integration, or demonstrated payment-policy fit.
+
+ROI:
+  “Proposed additional value” is counted as prevented loss; neither recovered
+  margin nor reduced dispute time is measured.
+
+Defensibility:
+  No validated proprietary dataset, workflow advantage, distribution
+  advantage, or demonstrated quality advantage.
+
+A PLAUSIBLE INITIAL CUSTOMER
+
+[B] A more coherent hypothesis is:
+
+  A 2–10-person fixed-fee web/design studio that already uses PayPal, has
+  explicit revision allowances, and wants client-approved paid amendments
+  before starting additional work.
+
+[C] Demand, preferred payment timing, willingness to pay, and production
+eligibility for the intended countries are UNKNOWN — NOT VERIFIED.
+
+The first validation should examine real change requests and existing
+approval/payment habits.
+
+
+8. COMPETITIVE REALITY
+----------------------
+
+The following primary pages verify what vendors publicly advertise. They do
+not establish independently tested performance, adoption, or reliability.
+
+EasyScope — direct:
+  AI scope detection, effort/cost/timeline estimates, change orders, client
+  approval links, invoicing, Stripe pay-on-approval, and bring-your-own PayPal
+  links.
+  Implication: strong overlap with the complete proposed workflow.
+
+ChangeVerdict — direct:
+  Signed-SOW comparison, atomic request decomposition, clause evidence,
+  change orders, revision tracking, living baseline, and audit trail.
+  Implication: strong overlap with the “enterprise evidence governance” story.
+
+Boundr — direct concept:
+  Request classification against scope, email workflows, revision tracking,
+  and financial impact.
+  Implication: core interpretation and margin-protection idea already
+  articulated; site currently emphasizes a waitlist.
+
+Bonsai — adjacent suite:
+  Proposals, agreements, projects, billing, rate cards, and MCP-based AI
+  actions.
+  Implication: existing customer workflow and AI distribution.
+
+HoneyBook — adjacent suite:
+  Contracts, proposals, invoices, payments, AI summaries/drafts and
+  automation.
+  Implication: an additional standalone dashboard must earn its place.
+
+Dubsado — adjacent suite:
+  Contracts, proposals, invoices, payments, workflows, and portals.
+
+Contra — adjacent platform:
+  Scoped projects, contracts, escrow/milestones, invoices and additional
+  milestones.
+
+PandaDoc + PayPal — adjacent:
+  Clients sign quotes/proposals and pay through PayPal.
+  Implication: document-plus-PayPal is explicitly existing functionality.
+
+DocuSign Iris — adjacent enterprise:
+  Agreement AI, insights, agents and automated workflows.
+  Implication: generic contract-AI positioning faces mature alternatives.
+
+Stripe Payment Links — substitute:
+  Hosted collection without a custom checkout application.
+  Implication: payment-link creation alone offers little differentiation.
+
+QuickBooks:
+  Detailed current capability comparison is UNKNOWN — NOT VERIFIED.
+
+Scoro / Teamwork:
+  PSA/project and commercial-management positioning; compete for the broader
+  operational dashboard role.
+
+Manual workflow:
+  Contract review + email approval + payment link is an existing composable
+  workflow. ScopeGuard needs to demonstrate material time or error reduction.
+
+COMPETITIVE CONCLUSION
+
+[A] “AI identifies extra work, generates a change order, obtains approval,
+and collects payment” is already a publicly advertised category.
+
+[B] ScopeGuard’s potential advantage would have to come from a demonstrably
+better workflow or decision quality. The current repository supplies neither
+proof.
+
+[C] Whether competitors correctly handle counterfactual clauses, mixed
+requests, amended baselines, and ambiguous capture outcomes is UNKNOWN — NOT
+VERIFIED. Those are possible comparison dimensions, not established market
+gaps.
+
+
+9. HACKATHON FIT
+----------------
+
+CURRENT OFFICIAL REQUIREMENTS
+
+The official rules establish:
+
+- Deadline: November 12, 2026, noon PST.
+- Application must integrate the PayPal sandbox with an AI
+  tool/model/platform.
+- PayPal integration must be central.
+- Optional sponsor tools are not mandatory.
+- A working, consistently runnable application is required.
+- Public deployment is optional if complete setup/run access is provided.
+- Public source repository and detectable open-source license are required.
+- Public YouTube demonstration should be less than three minutes.
+- Judge access must remain available through December 15, 2026, 8 a.m.
+  Pacific.
+- Five judging criteria are equally weighted.
+
+[A] Neither autonomous AI financial authority nor MCP is a general eligibility
+requirement. The agent charter overstates that requirement.
+
+CURRENT-BUILD RATINGS
+
+Technological Implementation: WEAK
+  Real integration scaffolding, but payment success is fabricated on
+  failures and meaningful model performance is unverified.
+
+Design: WEAK
+  Considerable visual work; shipped interaction wiring prevents a coherent
+  product experience.
+
+Potential Impact: DECENT
+  Recognizable problem and plausible benefit; audience, outcomes and demand
+  remain unproved.
+
+Innovation / Idea: WEAK
+  Direct conceptual competitors and existing document/payment combinations.
+
+Presentation: WEAK
+  End-to-end demo readiness fails; actual submitted video quality is UNKNOWN
+  — NOT VERIFIED.
+
+[B] The current source cannot substantiate the required functioning product
+experience. A polished recording of synthetic success would not remedy that
+
+
+10. DEMO REALITY
+----------------
+
+WHAT IS CURRENTLY VERIFIED?
+
+[A]
+- Backend endpoints can execute in a controlled in-memory harness.
+- Keyword analysis and local persistence work.
+- Financial failure cases can be reproduced.
+- HTML/CSS assets and a substantial controller exist.
+
+[C]
+- Live model behavior.
+- Real sandbox buyer approval and seller-side capture.
+- Browser end-to-end interaction.
+- Deployment stability.
+- A functioning submission video.
+
+These are UNKNOWN — NOT VERIFIED.
+
+SHIPPED FRONTEND BLOCKERS
+
+1. Classic-script parsing fails.
+
+   HTML contains:
+
+     <script src="/static/app.js"></script>
+
+   The file contains export function. Node’s classic-script parser returned:
+
+     SyntaxError: Unexpected token 'export'
+
+2. All 47 unique literal DOM targets are missing.
+
+   Examples:
+
+     Controller expects       HTML contains
+     ----------------------  ----------------
+     input-contract           contractSow
+     input-request            clientMessage
+     btn-analyze              analyzeBtn
+     ledger-tbody             ledgerTableBody
+     toast-root               toastRoot
+
+   Fixing script mode alone would still leave the main workflow nonfunctional.
+
+3. Preset contracts disagree.
+
+   HTML offers billable_addon and enterprise_ext; controller defines
+   db_migration and sso_rbac.
+
+4. Mobile checkout is incomplete.
+
+   HTML calls showQrModal; controller exposes openQrModal. The displayed QR
+   graphic is static artwork rather than an order-bound QR encoding.
+
+HONEST SUB-THREE-MINUTE ACCEPTANCE TARGET
+
+This is a proposed 178-second storyboard after repair, not a description of
+current functionality.
+
+  0–15s:   Identify one fixed-fee studio and a specific unpaid-change problem.
+ 15–35s:   Show the actual SOW, revision allowance, and agreed pricing terms.
+ 35–60s:   Analyze a mixed request; distinguish included correction from paid
+            addition with exact evidence.
+ 60–80s:   Change the governing clause and show the verdict change, or an
+            explicit abstention.
+ 80–100s:  Merchant reviews the proposed amendment and confirms the amount.
+100–125s: Create a real sandbox order and show buyer approval.
+125–150s: Capture and display verified amount, currency and capture ID;
+            confirm seller activity.
+150–170s: Demonstrate retry/failure handling preserving truthful payment state.
+170–178s: Summarize one measured benefit and the product’s supported scope.
+
+Checkout timing would need rehearsal with pre-authenticated sandbox test
+accounts. The official sandbox reference identifies seller-side transaction
+activity as end-to-end payment proof.
+
+
+11. CODE / ENGINEERING PROBLEMS
+-------------------------------
+
+P0 — BLOCKING
+
+Fail-open financial success:
+  Location: routers/paypal.py:69–72, 119–169; routers/scope.py:205–208.
+  Correction: provider failure must remain failure or unresolved state;
+  synthetic receipts must not enter real payment state.
+
+Shipped UI cannot execute its core flow:
+  Location: index.html:609, app.js, controller DOM bindings.
+  Correction: align module loading, DOM contract, presets and handlers; verify
+  the actual browser journey.
+
+Model controls financial classification:
+  Location: services/ai.py:8–14; routers/scope.py:75–88, 159–170.
+  Correction: restrict AI verdicts and separate them from payment lifecycle.
+
+Capture evidence is inadequately validated:
+  Location: services/paypal.py:115–127; capture routers.
+  Correction: handle minimal responses; verify nested status, identity,
+  amount, currency and reference before committing paid.
+
+Merchant authority is absent:
+  Location: all project, approval and payment routes.
+  Correction: establish identity and ownership before exposed financial
+  operations.
+
+Retry/state integrity is absent:
+  Location: UUID generation and mutable order replacement.
+  Correction: persist operation identity, enforce transitions, and reconcile
+  ambiguous results.
+
+P1 — IMPORTANT
+
+- Grounding and abstention: verify evidence against the actual baseline and
+  distinguish unclear requests.
+- Pricing integrity: use agreed terms/rate cards and explicit approval rather
+  than keyword or unsupported market estimates.
+- Real source-of-truth ledger: persist payment evidence and hydrate the UI
+  from it.
+- Contract lifecycle: preserve baseline versions and approved amendments.
+- Frontend attribution: reset stale order state and associate capture updates
+  with the correct record.
+- Webhook/reconciliation story: implement a genuine verified receiver if
+  advertised, with duplicate-event handling and recoverable state.
+- Reflected HTML: /api/paypal/return inserts unescaped token content. An
+  offline request returned a supplied executable <script> element; browser
+  execution was not tested.
+- History provenance: persist supplied channel instead of projecting
+  everything as Slack.
+- Portable tooling: remove the build’s dependency on another project’s
+  absolute local TypeScript path.
+- Test isolation: current tests do not explicitly isolate external calls from
+  environment-loaded credentials.
+- Judge setup: supply complete, verified installation and access path.
+
+P2 — POLISH
+
+- Resolve MIT/ISC metadata inconsistency.
+- Eliminate duplicate/drifting frontend type contracts.
+- Correct CSV quote escaping and table-column mismatch.
+- Replace misleading “escrow,” “verified,” and “compliance” terminology.
+- Reassess token caching and unnecessary OAuth latency.
+- Review accessibility and responsive behavior once interaction works.
+
+VERIFICATION PERFORMED
+
+Check                                  Result
+-------------------------------------  -----------------------------
+Audited Python files parsed with AST   PASS
+Six existing Python test functions     PASS in isolated harness
+Shipped JS classic-script parse         FAIL
+Literal JS-to-HTML ID match             0 / 47
+Adversarial financial invariants        Multiple reproduced failures
+OpenAPI authentication schemes          None
+OpenAPI webhook receiver                None
+Actual ScopeGuard browser tests         Not executed
+Clean install/build                     UNKNOWN — NOT VERIFIED
+Live model / real PayPal transaction    UNKNOWN — NOT VERIFIED
+
+The passing Python tests are useful API smoke coverage, not proof of external
+integration or financial correctness.
+
+
+12. DOCUMENTATION PROBLEMS
+---------------------------
+
+README.md:
+  Calls the prototype mission-critical; promises verbatim grounding,
+  objective confidence, idempotency guarantees, immutable ledger and webhook
+  distribution beyond the implementation.
+
+README.md setup:
+  Launches on 8080 while payment redirects use 8000; omits a complete
+  dependency-installation path.
+
+AGENTS.md:
+  “Proven Foundation — Do Not Re-verify” elevates historical assertions over
+  evidence.
+
+AGENTS.md:
+  ScopeBridge concept coexists with RTO-risk, lead follow-up and alerting roles
+  unrelated to current code.
+
+LOCAL_SETUP.md:
+  Historical 401 diagnosis and “no runnable application” statement conflict
+  with newer code; current credential state is not established.
+
+PAYPAL_SETUP.md:
+  Claims token caching, refunds, healthcheck, an agent loop and payments table
+  that current code does not implement.
+
+PAYPAL_SETUP.md:
+  Uses production MCP endpoint in a sandbox-oriented guide.
+
+ORCHESTRATION.log:
+  Records older completed/proven systems and files absent from the current
+  tree; it is historical narrative, not present-state verification.
+
+KITTRUST_IMPLEMENTATION_PLAN.md:
+  Describes a different approved-but-paused direction; it does not establish
+  implementation or authorize an automatic pivot.
+
+HACKATHON_BRIEF.md:
+  Historical research should be separated from current build status; key
+  rules were independently reconfirmed.
+
+package.json:
+  Build/typecheck commands reference an absolute path into another local
+  repository.
+
+Package lock:
+  Root metadata/dependencies drift from current package.json.
+
+[B] The main documentation repair is establishing one canonical account of
+what currently runs, what remains proposed, and what evidence supports
+“verified.”
+
+
+13. FALSE CONFIDENCE
+--------------------
+
+The repository contains mechanisms that make incomplete behavior look
+stronger than it is:
+
+- “100% pass rates.” Payment tests pass without credentials because exceptions
+  are converted into success.
+- Sandbox-looking URLs. A URL containing paypal.com is sufficient for a test
+  assertion even when its order ID was manufactured.
+- “Objective confidence.” Numeric confidence is a fixed mapping, not a
+  measured probability.
+- “Verbatim citation.” Strings are accepted without source-span validation.
+- “Immutable ledger.” Commercial terms and payment identifiers are overwritten.
+- “Webhook delivered: 200 OK.” The browser prints this without sending a
+  request.
+- “Healthy.” /health reports process health and configuration presence,
+  without provider authentication.
+- “Protected revenue.” Proposed prices are summed as though loss had been
+  prevented.
+- Enterprise visual language. It implies controls, provenance and operating
+  maturity the code does not establish.
+- Historical [PROVEN] log entries. They do not verify the current snapshot.
+
+[A] Empty-database KPI response:
+
+  total_creep_prevented: 4850.0
+  total_settled_revenue: 2850.0
+  capture_rate: 100
+  total_audits: 14
+
+The frontend separately seeds sample clients, captured amounts, and compliance
+metrics.
+
+[B] These outputs obscure the difference between a demonstration fixture, an
+attempted operation, and a verified business result. Intent is not
+established; the misleading effect is.
+
+
+14. WHAT IS ACTUALLY STRONG
+---------------------------
+
+1. [A] Compact backend structure. Routes, schemas, models and provider
+   helpers are understandable and easy to inspect.
+
+2. [A] Real persistence and API scaffolding. Project/brief/request storage
+   and retrieval exist.
+
+3. [A] Recognizable PayPal integration primitives. OAuth, create,
+   approval-link extraction, capture and detail retrieval are present.
+
+4. [A] Credentials are accessed server-side. Current templates contain
+   placeholders; exhaustive history-wide secret safety is not established.
+
+5. [A] Timeouts and HTTP error checks exist inside provider helpers. The
+   damaging behavior occurs when routers turn those errors into success.
+
+6. [A] Considerable frontend design work exists. Reusable styling can support
+   a smaller coherent experience.
+
+7. [B] The core narrative is comprehensible. A client requests additional
+   work; the business agrees terms and obtains payment before proceeding.
+
+8. [B] A meaningful AI role is available. Decomposing mixed requests, finding
+   relevant evidence and drafting a proposed amendment can save judgment time.
+
+The most valuable reusable insight is:
+
+  Keep the requested change, the governing evidence, the agreed commercial
+  terms, and the payment receipt tied to the same amendment.
+
+Its value and differentiation still require demonstration.
+
+
+15. FINAL DECISION
+------------------
+
+TEN PRODUCT-SURVIVAL TESTS
+
+1. Can the problem be explained quickly?
+   PASS — Additional work begins before price/scope agreement.
+
+2. Is one initial customer clearly selected?
+   FAIL — Broad freelancer-to-enterprise positioning.
+
+3. Does changing the contract change the decision?
+   FAIL — Verified counterfactual fallback failure.
+
+4. Does removing AI materially weaken the demonstrated product?
+   FAIL — Default path relies on keywords; model advantage unmeasured.
+
+5. Is PayPal meaningfully exercised in demonstrated behavior?
+   FAIL — Real sandbox payment unverified; synthetic success dominates tests.
+
+6. Is there a demonstrated advantage over existing tools?
+   FAIL — Direct advertised competitors; no comparative evidence.
+
+7. Does the product fit the customer’s existing workflow?
+   UNKNOWN — Manual-paste friction and approval/payment habits unvalidated.
+
+8. Will users trust and pay for it?
+   UNKNOWN — No verified interviews, usage or willingness-to-pay evidence.
+
+9. Are financial outcomes truthful under failure/retry?
+   FAIL — Multiple reproduced integrity failures.
+
+10. Can the current build support a credible sub-three-minute demo?
+    FAIL — Frontend blockers and missing external proof.
+
+DECISION: PIVOT
+
+[B] Continuing the broad enterprise-governance positioning would invest in an
+
+PRESERVE
+
+- FastAPI project skeleton and reusable route/schema organization.
+- Basic project/request persistence.
+- Server-side PayPal integration primitives.
+- Selected design tokens and styling.
+- The evidence -> agreed amendment -> verified receipt insight.
+
+DISCARD OR REPLACE
+
+- Synthetic success in financial routes.
+- Keyword classification presented as semantic contract understanding.
+- Invented pricing and uncalibrated confidence presented as authoritative.
+- Mutable state presented as an immutable audit ledger.
+- Broad enterprise/compliance/escrow claims.
+- Simulated integrations presented as operational capability.
+- Unrelated RTO, lead-follow-up and rental-product assumptions.
+
+ONE RECOMMENDED PIVOT HYPOTHESIS
+
+Evidence-backed amendment checkout for small fixed-fee studios.
+
+Problem:
+  A mixed client request contains included corrections and additional work;
+  the parties need to agree the paid portion before execution.
+
+AI role:
+  Decompose the request, cite exact baseline evidence, identify uncertainty,
+  and draft an amendment.
+
+Commercial authority:
+  Merchant confirms scope and price from agreed terms; client explicitly
+  accepts the amendment.
+
+PayPal role:
+  Collect the agreed amount and reconcile a verified receipt to that exact
+  amendment.
+
+Demo moment:
+  One request contains free and paid work; only the agreed addition reaches
+  checkout, and an altered clause or failed capture prevents a false
+  charge/success.
+
+Differentiation target:
+  Demonstrably reliable grounding, refusal behavior, baseline versioning and
+  amendment-to-capture binding.
+
+Complexity:
+  Moderate; one narrow workflow, but core state, evidence and frontend
+  connections require substantial repair.
+
+Hackathon fit:
+  Credible if meaningful model behavior and real buyer-approved sandbox
+  settlement are shown.
+
+Commercial status:
+  [C] Hypothesis. Competitors already overlap; uniqueness and willingness to
+  pay remain unverified.
+
+This is a product hypothesis to validate before expanding implementation.
+
+
+16. NEXT 7 MOVES
+-----------------
+
+1. Select one customer and one approval/payment scenario.
+   Produce a one-page scope naming the buyer, user, contract type, payment
+   timing, and supported currency. Validate it against actual recent change
+   requests.
+
+2. Validate the proposed advantage against direct alternatives.
+   Use the same realistic mixed request with EasyScope, ChangeVerdict and a
+   manual workflow. Record time, evidence quality and approval friction.
+
+3. Establish a portable, functioning vertical slice.
+   Align script mode, DOM IDs, handlers, presets and dependency commands.
+   Acceptance: a fresh checkout reaches analysis, order creation and history
+   through the actual browser.
+
+4. Restore deterministic commercial and financial authority.
+   Separate AI verdicts from payment state; require ownership and explicit
+   approved terms; remove manufactured payment success.
+   Acceptance: rejected or uncertain operations never create paid records.
+
+5. Prove PayPal end to end and under failure.
+   Show buyer approval, seller-side capture, matching amount/currency/
+   reference, minimal-response handling and retry recovery. Preserve provider
+   evidence for the exact amendment.
+
+6. Demonstrate meaningful AI quality.
+   Evaluate included/excluded counterfactuals, mixed requests, amendment
+   history, fabricated quotations and ambiguity. Report measured performance
+   and model failures transparently.
+
+7. Replace the submission narrative with verified reality.
+   Consolidate documentation, provide complete judge access, and record a
+   functioning demo under three minutes. Base impact claims on observed
+   customer evidence or explicit hypotheses.
+
+BOTTOM LINE
+-----------
+
+ScopeGuard has reusable foundations. Its next investment should prove a
+narrow, trustworthy amendment-to-payment workflow and a customer advantage
+before expanding the platform claim.
+
+
+PRIMARY SOURCES
+---------------
+
+Repository:
+  https://github.com/Pr1meGG/paypal-ai-hackathon/tree/c633b0010eece9d1733ffa6832cc15d6e8279d0f
+
+PayPal capture API:
+  https://developer.paypal.com/api/orders/v2/orders-capture
+
+PayPal capture statuses:
+  https://developer.paypal.com/api/orders/v2/definitions/capture_status
+
+PayPal idempotency:
+  https://developer.paypal.com/api/rest/reference/idempotency/
+
+PayPal seller receivable breakdown:
+  https://developer.paypal.com/api/orders/v2/definitions/seller_receivable_breakdown
+
+PayPal webhooks:
+  https://developer.paypal.com/api/webhooks/overview
+
+PayPal currency rules:
+  https://developer.paypal.com/api/rest/reference/currency-codes/
+
+PayPal MCP documentation:
+  https://developer.paypal.com/ai-tools/mcp-server
+
+PayPal sandbox reference:
+  https://github.com/paypaldev/getting-started-with-paypal-sandbox
+
+Hackathon rules:
+  https://paypalaihackathon.devpost.com/rules
+
+Competitor references:
+  https://www.easyscope.io/en
+  https://www.changeverdict.com/
+  https://boundr.io/
+  https://www.hellobonsai.com/mcp
+  https://www.honeybook.com/product/ai
+  https://help.contra.com/en/articles/9322763-paid-projects
+  https://www.pandadoc.com/integrations/payment/paypal/
+  https://www.docusign.com/products/platform/ai
+  https://docs.stripe.com/payment-links

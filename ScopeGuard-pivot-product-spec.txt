@@ -1,0 +1,2873 @@
+# 1. PRODUCT DECISION
+
+**Decision: CONTINUE WITH PIVOT.**
+
+This specification replaces the existing “mission-critical enterprise governance” positioning with a narrow product:
+
+> **Evidence-backed paid amendments for small fixed-fee studios.**
+
+This is a specification-only phase.
+
+- No repository files were modified.
+- No code was written.
+- No commits, branches, PRs, or external payment operations were performed.
+- The authoritative audit was read completely.
+- Audit facts remain labeled:
+  - **[A] VERIFIED**
+  - **[B] REASONABLE INFERENCE**
+  - **[C] UNVERIFIED / SPECULATIVE**
+
+## Product name options
+
+1. **ScopeGuard Amendments** — recommended for continuity.
+2. **ScopeProof** — clearest expression of evidence grounding.
+3. **ChangeReceipt** — emphasizes the link between scope and payment.
+4. **AmendFlow** — neutral workflow-oriented name.
+
+Product naming availability and trademark status are **[C] UNKNOWN — NOT VERIFIED**.
+
+## Recommended name
+
+**ScopeGuard Amendments**
+
+The existing ScopeGuard name can survive if all unsupported enterprise, compliance, escrow, and autonomous-agent claims are removed.
+
+## Product invariants
+
+These are hard architectural rules:
+
+1. AI can never create or mutate financial state.
+2. AI can never set the final commercial price.
+3. AI can never invent or silently accept evidence.
+4. Every amendment item must reference the exact baseline version used for analysis.
+5. A client must explicitly accept the exact merchant-approved amendment snapshot.
+6. PayPal order amount and currency must come from the immutable merchant-approved snapshot.
+7. `PAID` is legal only after independently verified PayPal capture evidence exists.
+8. A failed, pending, malformed, mismatched, or unresolved payment can never become `PAID`.
+9. PayPal request identities must be persisted and reused for retries.
+10. Historical baselines, evidence, approvals, and payment receipts must remain reproducible.
+
+# 2. PRODUCT THESIS
+
+## One-sentence product definition
+
+**ScopeGuard Amendments turns mixed client requests into evidence-backed amendment items, lets the studio approve the exact additional scope and price, collects the client’s PayPal payment, and marks the amendment paid only after verified PayPal evidence is bound to that amendment.**
+
+## Product thesis
+
+Fixed-fee studios do not primarily need another project dashboard. They need a trustworthy answer to a narrow question:
+
+> “Which parts of this request are already included, which parts require a paid change, and can I prove what the client agreed to before I start?”
+
+The product therefore focuses on one vertical slice:
+
+```text
+Client request
+    ↓
+Atomic request items
+    ↓
+Baseline evidence
+    ↓
+INCLUDED / EXTRA / UNCERTAIN
+    ↓
+Merchant-selected amendment
+    ↓
+Merchant-approved price
+    ↓
+Client acceptance
+    ↓
+PayPal Sandbox approval and capture
+    ↓
+Verified amendment receipt
+```
+
+The product does not claim to replace contract management, project management, invoicing, CRM, or legal review.
+
+## User stories
+
+### Studio owner
+
+- As a studio owner, I can create a project and save the baseline SOW.
+- As a studio owner, I can give a client a request link or enter a client request verbatim.
+- As a studio owner, I can see each request decomposed into separate items.
+- As a studio owner, I can inspect the exact SOW evidence behind every classification.
+- As a studio owner, I can see when the system is uncertain.
+- As a studio owner, I can select only grounded additional items for an amendment.
+- As a studio owner, I can set the final price and currency.
+- As a studio owner, I can approve the amendment without AI changing the amount.
+- As a studio owner, I can see whether the client accepted the amendment.
+- As a studio owner, I can see the verified PayPal capture tied to the exact amendment.
+
+### Client
+
+- As a client, I can review the proposed amendment without creating an account.
+- As a client, I can see what was requested, what evidence supports it, and what I am being asked to pay.
+- As a client, I can accept or decline the exact amendment snapshot.
+- As a client, I can complete PayPal Sandbox approval.
+- As a client, I can see whether payment is pending, failed, unresolved, or verified.
+
+### System operator
+
+- As an operator, I can distinguish AI analysis failure from payment failure.
+- As an operator, I can reconcile an ambiguous PayPal response without marking it paid prematurely.
+- As an operator, I can reproduce historical evidence against the exact baseline version used.
+
+## Non-goals
+
+The MVP explicitly does not include:
+
+- Multi-tenant enterprise architecture.
+- Enterprise SSO or RBAC.
+- Slack integration.
+- Jira integration.
+- Email ingestion.
+- Salesforce or procurement integrations.
+- Generic CRM.
+- Generic project management.
+- Full contract lifecycle management.
+- PDF/OCR/document-signature workflows.
+- Autonomous financial agents.
+- AI-controlled payment authorization.
+- AI-generated pricing authority.
+- Generic invoicing.
+- Escrow.
+- Refunds or disputes.
+- Partial capture.
+- PayPal authorization/void flows.
+- Fake analytics.
+- Fake webhook simulation.
+- Fake payment fallback.
+- MCP integration.
+- Agent Toolkit integration.
+- Vector databases.
+- Microservices.
+- Cloud infrastructure beyond what is needed for a working demo.
+
+# 3. TARGET CUSTOMER
+
+## Initial customer hypothesis
+
+**[B]** A 2–10 person fixed-fee web, design, branding, or development studio that:
+
+- Uses written SOWs or proposals.
+- Has explicit revision allowances or exclusions.
+- Receives informal requests through email, chat, or meetings.
+- Uses PayPal or is willing to use PayPal for amendments.
+- Wants approval and payment before starting additional work.
+- Does not need a new project-management system.
+
+## Primary user
+
+The studio owner, account lead, or delivery lead who decides:
+
+- Whether requested work is included.
+- Which additional items should be charged.
+- The final price.
+- Whether the amendment should be sent to the client.
+
+## Secondary user
+
+The client who:
+
+- Submitted or authored the request.
+- Reviews the proposed additional work.
+- Accepts or declines the commercial amendment.
+- Completes PayPal payment.
+
+## Product assumptions
+
+These are product hypotheses, not verified facts:
+
+- The studio can provide a plain-text SOW.
+- A single studio operator is sufficient for the hackathon MVP.
+- A client will accept a secure link without creating an account.
+- USD is sufficient for the first demo.
+- A synchronous capture flow is sufficient for the MVP.
+- A manual request link is acceptable instead of native Slack/email ingestion.
+
+Demand, willingness to pay, preferred payment timing, and country eligibility remain **[C] UNKNOWN — NOT VERIFIED**.
+
+# 4. CORE USER JOURNEY
+
+## Studio setup
+
+1. Studio operator signs in using the MVP studio session.
+2. Operator creates a project.
+3. Operator enters:
+   - Project name.
+   - Client name.
+   - Client email, optional.
+   - Baseline SOW text.
+4. Server creates immutable `BaselineVersion 1`.
+5. Server calculates and stores the canonical text hash.
+6. Studio receives a client request link.
+
+## Client request
+
+1. Client opens the request link.
+2. Client submits the request in their own words.
+3. Server stores the raw request without rewriting it.
+4. The request is bound to the project’s current baseline version.
+
+For the MVP, the product can also support a studio-side “paste client message” path. It must be labeled as a manually submitted client request, not represented as native Slack, Jira, or email ingestion.
+
+## AI analysis
+
+1. Server sends the request and the exact baseline version to the AI service.
+2. AI decomposes the request into atomic items.
+3. Each item is classified:
+   - `INCLUDED`
+   - `EXTRA`
+   - `UNCERTAIN`
+4. AI proposes evidence spans and explanations.
+5. Server validates every evidence span.
+6. Invalid evidence causes the item to become `UNCERTAIN`.
+7. AI analysis never creates an amendment or changes payment state.
+
+## Merchant review
+
+1. Studio sees all request items.
+2. Each item displays:
+   - Original request text.
+   - Normalized description.
+   - Classification.
+   - Exact evidence.
+   - Explanation.
+   - Uncertainty reason, if applicable.
+3. Studio selects only grounded `EXTRA` items for the amendment.
+4. `INCLUDED` items may be displayed in the amendment as no-charge context.
+5. `UNCERTAIN` items cannot be included in a payable amendment.
+6. Studio writes or edits the amendment wording.
+7. Studio enters the final amount and currency.
+8. Server creates an immutable merchant-approved amendment snapshot.
+
+## Client acceptance
+
+1. Client opens the amendment link.
+2. Client sees:
+   - Included context.
+   - Additional work.
+   - Evidence.
+   - Amendment wording.
+   - Final amount.
+   - Currency.
+3. Client explicitly accepts or declines.
+4. Acceptance records the exact amendment snapshot hash.
+5. The client cannot alter price, scope, evidence, or currency.
+
+## PayPal payment
+
+1. After client acceptance, the server creates a PayPal Sandbox order.
+2. The order contains:
+   - Exact approved amount.
+   - Exact approved currency.
+   - Amendment identifier as reconciliation metadata.
+3. Client is redirected to PayPal Sandbox.
+4. Client completes buyer approval.
+5. Server verifies the order status and identity.
+6. Server captures the order using the persisted capture operation key.
+7. Server validates the actual capture response.
+8. Only verified capture evidence can transition the amendment to `PAID`.
+
+## Final receipt
+
+The receipt displays the same amendment record with:
+
+- Amendment ID.
+- Baseline version ID and hash prefix.
+- Selected amendment items.
+- Evidence spans.
+- Merchant approval timestamp.
+- Client acceptance timestamp.
+- Approved amount and currency.
+- PayPal order ID.
+- PayPal capture ID.
+- Provider capture status.
+- Verified amount and currency.
+- Verification timestamp.
+- Payment state.
+
+# 5. DOMAIN MODEL
+
+## Minimal persistence model
+
+| Entity | Separate table? | Purpose |
+|---|---:|---|
+| Studio | Yes | Owns projects and merchant operations |
+| Project | Yes | Groups a client engagement and baseline history |
+| BaselineVersion | Yes | Immutable SOW snapshots |
+| ChangeRequest | Yes | Stores the client’s original request |
+| RequestItem | Yes | Stores atomic AI-decomposed request items |
+| EvidenceSpan | Yes | Stores validated evidence bound to a baseline version |
+| Amendment | Yes | Stores the commercial change-order snapshot |
+| AmendmentItem | Yes | Stores which request items were selected for the amendment |
+| AmendmentEvent | Yes | Append-only approval, acceptance, state-transition history |
+| PaymentAttempt | Yes | Stores PayPal operation identity, order/capture projection, and payment evidence |
+| PayPalOrder | No separate table for MVP | Represented by PayPal fields on `PaymentAttempt` |
+| PayPalCapture | No separate table for MVP | Represented by capture fields on `PaymentAttempt` |
+| PaymentEvidence | No separate table for MVP | Stored as validated, write-once fields and sanitized provider response on `PaymentAttempt` |
+
+A separate PayPal order/capture table can be introduced later if the product supports multiple payment providers or multiple captures. That is not required for the MVP.
+
+## Studio
+
+**Purpose:** Ownership boundary for all merchant-controlled records.
+
+Important fields:
+
+- `id`
+- `name`
+- `default_currency`
+- `status`
+- `created_at`
+
+Ownership:
+
+- All projects and amendments belong to exactly one studio.
+
+Mutable fields:
+
+- `name`
+- `status`
+
+Source of truth:
+
+- Studio session and `studio_id`.
+
+## Project
+
+**Purpose:** A client engagement containing baseline versions and change requests.
+
+Important fields:
+
+- `id`
+- `studio_id`
+- `name`
+- `client_name`
+- `client_email`
+- `current_baseline_version_id`
+- `status`
+- `created_at`
+- `updated_at`
+
+Relationships:
+
+- One studio has many projects.
+- One project has many baseline versions.
+- One project has many change requests.
+- One project has many amendments.
+
+## BaselineVersion
+
+**Purpose:** Immutable version of the governing SOW or contract text.
+
+Important fields:
+
+- `id`
+- `project_id`
+- `version_number`
+- `source_text`
+- `canonical_text`
+- `content_sha256`
+- `supersedes_version_id`
+- `created_by`
+- `created_at`
+
+Immutable fields:
+
+- All source content.
+- Version number.
+- Hash.
+- Project association.
+- Creation timestamp.
+
+Source of truth:
+
+- The exact baseline version referenced by a request or amendment.
+
+## ChangeRequest
+
+**Purpose:** Raw request submitted by the client or entered verbatim by the studio.
+
+Important fields:
+
+- `id`
+- `project_id`
+- `baseline_version_id`
+- `raw_text`
+- `submitted_by_role`
+- `analysis_status`
+- `created_at`
+- `analyzed_at`
+- `analysis_error`
+
+Immutable fields:
+
+- Raw request text.
+- Project.
+- Baseline version.
+- Submission timestamp.
+
+Mutable fields:
+
+- Analysis status.
+- Analysis error metadata.
+
+## RequestItem
+
+**Purpose:** One atomic item extracted from the request.
+
+Important fields:
+
+- `id`
+- `change_request_id`
+- `ordinal`
+- `original_text`
+- `normalized_text`
+- `classification`
+- `reasoning_summary`
+- `uncertainty_reason`
+- `suggested_amendment_wording`
+- `created_at`
+
+Allowed classifications:
+
+- `INCLUDED`
+- `EXTRA`
+- `UNCERTAIN`
+
+The item cannot contain:
+
+- Price.
+- Payment status.
+- PayPal IDs.
+- Merchant approval.
+- Client acceptance.
+
+## EvidenceSpan
+
+**Purpose:** A validated reference from a specific baseline version.
+
+Important fields:
+
+- `id`
+- `request_item_id`
+- `baseline_version_id`
+- `start_line`
+- `end_line`
+- `quoted_text`
+- `validation_status`
+- `validated_at`
+
+Validation status:
+
+- `VALID`
+- `INVALID`
+- `AMBIGUOUS`
+
+An item may have multiple evidence spans, but the MVP should cap this at three.
+
+## Amendment
+
+**Purpose:** Immutable commercial proposal created from selected request items.
+
+Important fields:
+
+- `id`
+- `project_id`
+- `change_request_id`
+- `baseline_version_id`
+- `amendment_number`
+- `title`
+- `scope_text`
+- `amount_minor`
+- `currency`
+- `status`
+- `payment_status`
+- `snapshot_sha256`
+- `expires_at`
+- `created_at`
+- `updated_at`
+
+Mutable fields:
+
+- Draft wording and selected items while `DRAFT`.
+- Current state projection.
+- Current payment status projection.
+
+Immutable after merchant approval:
+
+- Selected items.
+- Scope wording.
+- Amount.
+- Currency.
+- Baseline version.
+- Snapshot hash.
+
+## AmendmentItem
+
+**Purpose:** Snapshot of the request items included in the amendment.
+
+Important fields:
+
+- `id`
+- `amendment_id`
+- `request_item_id`
+- `classification_at_selection`
+- `item_text_snapshot`
+- `evidence_ids_snapshot`
+- `created_at`
+
+An `UNCERTAIN` request item cannot be selected.
+
+## AmendmentEvent
+
+**Purpose:** Append-only record of important lifecycle events.
+
+Important fields:
+
+- `id`
+- `amendment_id`
+- `event_type`
+- `actor_role`
+- `actor_studio_id`
+- `old_state`
+- `new_state`
+- `snapshot_sha256`
+- `metadata_json`
+- `created_at`
+
+Example events:
+
+- `AMENDMENT_CREATED`
+- `MERCHANT_APPROVED`
+- `CLIENT_ACCEPTED`
+- `CLIENT_DECLINED`
+- `PAYMENT_ORDER_CREATED`
+- `PAYMENT_APPROVAL_CONFIRMED`
+- `PAYMENT_CAPTURE_VERIFIED`
+- `PAYMENT_FAILED`
+- `PAYMENT_UNRESOLVED`
+- `AMENDMENT_CANCELLED`
+
+## PaymentAttempt
+
+**Purpose:** Stores one logical PayPal payment operation and its provider evidence.
+
+Important fields:
+
+- `id`
+- `amendment_id`
+- `operation_type`
+- `operation_key`
+- `state`
+- `paypal_order_id`
+- `paypal_capture_id`
+- `requested_amount_minor`
+- `requested_currency`
+- `provider_order_status`
+- `provider_capture_status`
+- `verified_amount_minor`
+- `verified_currency`
+- `paypal_fee_minor`
+- `provider_created_at`
+- `provider_updated_at`
+- `approval_url`
+- `provider_response_sanitized`
+- `last_error_code`
+- `last_error_message`
+- `created_at`
+- `updated_at`
+
+Write-once evidence:
+
+- PayPal order ID once known.
+- PayPal capture ID once known.
+- Verified amount and currency.
+- Provider status evidence.
+- Provider timestamps.
+- Operation key.
+
+The current operational state may change, but provider evidence must not be overwritten.
+
+# 6. STATE MACHINE
+
+The system has three separate state machines.
+
+## A. AI analysis state
+
+```text
+PENDING
+   |
+   v
+ANALYZING
+   |---------------------> FAILED
+   |
+   | all items grounded and classified
+   v
+ANALYZED
+
+ANALYZING
+   |
+   | one or more items lack sufficient evidence
+   v
+NEEDS_CLARIFICATION
+```
+
+### AI transitions
+
+| Transition | Trigger | Required evidence | Forbidden side effect |
+|---|---|---|---|
+| `PENDING → ANALYZING` | Server starts analysis | Valid request and baseline version | No amendment/payment mutation |
+| `ANALYZING → ANALYZED` | Strict AI response and all evidence validate | Every item has valid classification; every non-uncertain item has valid evidence | No price or payment state |
+| `ANALYZING → NEEDS_CLARIFICATION` | Item cannot be grounded or is ambiguous | Item-level uncertainty reason | Cannot create amendment from that item |
+| `ANALYZING → FAILED` | Provider error, invalid JSON, schema violation | Error record | No partial analysis committed |
+| `FAILED → ANALYZING` | Explicit retry | Same request and baseline version | No financial mutation |
+
+`NEEDS_CLARIFICATION` does not prevent a merchant from creating an amendment from other fully grounded `EXTRA` items, but uncertain items cannot be selected or charged.
+
+## B. Amendment state
+
+```text
+DRAFT
+  |
+  | merchant approves exact snapshot
+  v
+MERCHANT_APPROVED
+  |
+  | client accepts exact snapshot
+  v
+CLIENT_ACCEPTED
+  |
+  | payment operation begins
+  v
+PAYMENT_PENDING
+  |
+  | verified completed capture
+  v
+PAID
+```
+
+Terminal or non-happy-path states:
+
+```text
+DRAFT              → REJECTED
+DRAFT              → STALE
+MERCHANT_APPROVED  → CLIENT_DECLINED
+MERCHANT_APPROVED  → EXPIRED
+CLIENT_ACCEPTED    → CANCELLED
+PAYMENT_PENDING    → PAYMENT_FAILED
+PAYMENT_PENDING    → PAYMENT_UNRESOLVED
+PAYMENT_FAILED     → PAYMENT_PENDING
+PAYMENT_UNRESOLVED → PAYMENT_PENDING
+```
+
+### Amendment transition rules
+
+#### `DRAFT → MERCHANT_APPROVED`
+
+Triggered by:
+
+- Authenticated studio session.
+
+Required:
+
+- At least one selected item.
+- Every selected item is `EXTRA` or `INCLUDED`.
+- No selected item is `UNCERTAIN`.
+- Every selected item has valid evidence.
+- Baseline version is not stale.
+- Amount is a positive integer number of minor units.
+- Currency is supported; MVP supports `USD`.
+- Amendment wording exists.
+- Snapshot hash is calculated and stored.
+- `MERCHANT_APPROVED` event is appended.
+
+Forbidden:
+
+- AI-supplied amount.
+- AI-supplied payment state.
+- Mutation of the selected items after approval.
+
+#### `MERCHANT_APPROVED → CLIENT_ACCEPTED`
+
+Triggered by:
+
+- Client using a valid amendment link.
+
+Required:
+
+- Amendment has not expired or been cancelled.
+- Snapshot hash in the acceptance request matches the current amendment.
+- Client acceptance timestamp is stored.
+- `CLIENT_ACCEPTED` event is appended.
+
+Forbidden:
+
+- Client changing amount, currency, wording, or selected items.
+- Order creation before acceptance is recorded.
+
+#### `CLIENT_ACCEPTED → PAYMENT_PENDING`
+
+Triggered by:
+
+- Server starts PayPal order creation.
+
+Required:
+
+- Valid client acceptance.
+- Immutable approved amount and currency.
+- Stable order-creation operation key.
+- Studio ownership of the amendment.
+
+#### `PAYMENT_PENDING → PAID`
+
+Triggered only by:
+
+- Server-side PayPal verification.
+
+Required:
+
+- PayPal order ID matches the stored order.
+- Capture ID exists.
+- Capture status is `COMPLETED`.
+- Captured amount exactly matches approved amount.
+- Captured currency exactly matches approved currency.
+- PayPal reference/custom ID matches amendment ID.
+- Provider response is structurally valid.
+- Verification transaction commits the payment evidence and amendment state together.
+
+Forbidden:
+
+- AI output.
+- Client redirect alone.
+- HTTP 200 alone.
+- Missing capture ID.
+- Local fallback.
+- Pending, declined, failed, or unresolved response.
+- A fabricated or locally generated PayPal identifier.
+
+### Proof that failed payment cannot become paid
+
+`PAID` has exactly one legal predecessor: a verified capture transaction.
+
+No route accepts `classification`, `status`, or `capture_id` from the AI or browser as authority.
+
+The database transition must require:
+
+```text
+current amendment state = PAYMENT_PENDING
+AND payment attempt state = CAPTURED
+AND verified capture evidence is complete
+```
+
+Otherwise the transition is rejected.
+
+## C. Payment state
+
+```text
+NOT_STARTED
+   |
+   v
+ORDER_CREATING
+   |----------------------> FAILED
+   |----------------------> UNRESOLVED
+   |
+   v
+BUYER_APPROVAL_PENDING
+   |
+   | buyer return + verified order status
+   v
+BUYER_APPROVED
+   |
+   v
+CAPTURE_IN_PROGRESS
+   |-------------> CAPTURED
+   |-------------> PENDING_FUNDS
+   |-------------> FAILED
+   |-------------> UNRESOLVED
+```
+
+Additional transitions:
+
+- `PENDING_FUNDS → CAPTURED` after reconciliation proves completed capture.
+- `PENDING_FUNDS → FAILED` after provider proves failure.
+- `UNRESOLVED → CAPTURE_IN_PROGRESS` using the same operation key.
+- `FAILED → ORDER_CREATING` only for a retryable order-creation failure.
+- `FAILED → CAPTURE_IN_PROGRESS` if the existing order is still valid and buyer approval exists.
+- `CAPTURED` is terminal for the payment attempt.
+- No payment state can transition backward from `CAPTURED`.
+
+# 7. AI CONTRACT
+
+## AI input
+
+The server sends:
+
+- `change_request_id`
+- Raw client request
+- Exact `baseline_version_id`
+- Canonical baseline text
+- Deterministic line numbers
+- Explicit instruction that the model has no financial authority
+
+Example conceptual input:
+
+```text
+BASELINE VERSION: baseline_v1_hash
+LINE 001: Three revision rounds are included.
+LINE 002: HubSpot integration is excluded.
+LINE 003: Mobile bug fixes are included.
+
+CLIENT REQUEST:
+Fix the mobile checkout bug and add HubSpot integration.
+```
+
+## AI output
+
+Strict JSON only:
+
+```json
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "request_text": "Fix the mobile checkout bug",
+      "normalized_request": "Fix the mobile checkout bug",
+      "classification": "INCLUDED",
+      "evidence": {
+        "start_line": 3,
+        "end_line": 3,
+        "quote": "Mobile bug fixes are included."
+      },
+      "reasoning_summary": "The request matches the stated mobile bug-fix inclusion.",
+      "uncertainty_reason": null,
+      "suggested_amendment_wording": null
+    },
+    {
+      "request_text": "add HubSpot integration",
+      "normalized_request": "Add HubSpot integration",
+      "classification": "EXTRA",
+      "evidence": {
+        "start_line": 2,
+        "end_line": 2,
+        "quote": "HubSpot integration is excluded."
+      },
+      "reasoning_summary": "The request is explicitly excluded from the baseline.",
+      "uncertainty_reason": null,
+      "suggested_amendment_wording": "Add HubSpot integration as a paid amendment."
+    }
+  ]
+}
+```
+
+## Allowed fields
+
+The model may return:
+
+- Request text.
+- Normalized request.
+- Classification.
+- Evidence span.
+- Reasoning summary.
+- Uncertainty reason.
+- Suggested amendment wording.
+
+The model may not return:
+
+- Amount.
+- Currency.
+- Payment status.
+- PayPal order ID.
+- PayPal capture ID.
+- Merchant approval.
+- Client acceptance.
+- `PAID`.
+- “Completed.”
+- Receipt data.
+- Objective probability or calibrated confidence.
+
+## Classification rules
+
+### `INCLUDED`
+
+Use only when:
+
+- The request is supported by specific baseline evidence.
+- The evidence is validated by the server.
+- The request is within the stated baseline terms.
+
+### `EXTRA`
+
+Use only when:
+
+- The request is explicitly excluded, or
+- The request clearly adds a deliverable not contained in the baseline.
+- The evidence supports the boundary.
+- The server validates the evidence.
+
+### `UNCERTAIN`
+
+Use when:
+
+- The baseline is silent.
+- The language is ambiguous.
+- The request conflicts with multiple clauses.
+- The item cannot be decomposed reliably.
+- Evidence is missing or fails validation.
+- The model is asked to infer a legal or commercial conclusion unsupported by the text.
+
+`UNCERTAIN` is a valid product result, not an error to be hidden.
+
+## Server validation
+
+The AI response is parsed through a strict schema:
+
+- Unknown fields rejected.
+- Unsupported classifications rejected.
+- Missing required fields rejected.
+- Request text must appear in the raw client request.
+- Evidence line ranges must be within the referenced baseline version.
+- Evidence quote must exactly match the canonical baseline text for that span.
+- The baseline hash must match the hash supplied to the AI request.
+- Invalid evidence converts the item to `UNCERTAIN` or fails the analysis.
+- Any model output containing `PAID` is rejected and cannot mutate payment state.
+
+No silent heuristic fallback is allowed in the product path. If the model is unavailable:
+
+- Analysis becomes `FAILED`.
+- The UI explains that analysis could not be completed.
+- A test-only fake AI adapter may be used in automated tests.
+- A deterministic keyword analyzer must never be presented as semantic AI.
+
+# 8. EVIDENCE-GROUNDING DESIGN
+
+## Chosen implementation
+
+Use deterministic line-based evidence validation. Do not add a vector database.
+
+### Baseline ingestion
+
+When a baseline is saved:
+
+1. Preserve the submitted source text.
+2. Normalize line endings to `LF`.
+3. Generate canonical line numbers.
+4. Calculate SHA-256 over canonical text.
+5. Store the immutable `BaselineVersion`.
+
+### AI citation format
+
+The AI returns:
+
+- `start_line`
+- `end_line`
+- `quote`
+
+The server checks:
+
+1. The referenced baseline version belongs to the same project.
+2. The line range exists.
+3. The concatenated baseline lines exactly match the quote.
+4. The baseline hash matches the hash supplied to the AI request.
+5. The evidence span is stored against that exact version.
+6. The evidence is not reused from another project or version.
+
+### Why no vector database
+
+For the hackathon MVP:
+
+- SOWs are expected to be short enough for a line-numbered prompt.
+- Exact evidence validation is more important than semantic retrieval sophistication.
+- A vector database would add:
+  - Infrastructure.
+  - Embedding version management.
+  - Retrieval reproducibility problems.
+  - Additional failure modes.
+- The product’s differentiator is verifiable evidence, not retrieval infrastructure.
+
+If a baseline exceeds the supported context limit, the system should reject it with a clear message rather than silently truncating it.
+
+## Evidence invariants
+
+- No evidence reference without a baseline version.
+- No evidence quote without exact source matching.
+- No amendment item without valid evidence.
+- No historical evidence rewritten after a new baseline upload.
+- No section number accepted as proof by itself.
+- No evidence copied from another project or baseline.
+
+# 9. COMMERCIAL AUTHORITY
+
+## Pricing model
+
+The merchant owns final pricing.
+
+MVP pricing flow:
+
+```text
+AI identifies request items
+        ↓
+Merchant selects grounded EXTRA items
+        ↓
+Merchant writes or edits amendment wording
+        ↓
+Merchant enters amount_minor and currency
+        ↓
+Server validates amount/currency
+        ↓
+Merchant approves immutable snapshot
+```
+
+## Pricing rules
+
+- No AI-generated price.
+- No keyword multiplication.
+- No “fair market” estimate.
+- No automatic rate calculation.
+- No amount supplied by the client.
+- No amount inferred from the SOW.
+- No currency conversion in the MVP.
+- MVP currency: `USD`.
+- Amount is stored as integer minor units.
+- Amount must be greater than zero for a paid amendment.
+- An included-only request does not create a payable amendment.
+
+A future rate-card feature may be added after customer validation. It is not part of this MVP.
+
+## Merchant approval record
+
+Merchant approval stores:
+
+- Studio ID.
+- Merchant session subject.
+- Amendment ID.
+- Selected amendment item IDs.
+- Exact scope wording.
+- Amount.
+- Currency.
+- Baseline version ID.
+- Baseline hash.
+- Amendment snapshot hash.
+- Approval timestamp.
+
+Once approved:
+
+- Scope cannot be edited.
+- Selected items cannot change.
+- Amount cannot change.
+- Currency cannot change.
+- A correction requires cancelling the draft/approved amendment and creating a new amendment revision.
+
+## Client acceptance
+
+Client acceptance records:
+
+- Amendment ID.
+- Snapshot hash.
+- Acceptance timestamp.
+- Client link identity.
+- Optional client display name.
+
+Client acceptance does not permit any financial mutation other than advancing the accepted amendment into payment initiation.
+
+# 10. PAYPAL PAYMENT ARCHITECTURE
+
+## Official flow
+
+```text
+OAuth client credentials
+        ↓
+Create PayPal Orders v2 order
+        ↓
+Persist order ID and approval URL
+        ↓
+Buyer approval at PayPal Sandbox
+        ↓
+Verify order identity and APPROVED state
+        ↓
+Capture order using stable request ID
+        ↓
+Verify capture response
+        ↓
+Persist verified evidence
+        ↓
+Mark amendment PAID
+```
+
+PayPal remains central because it performs the actual client payment and produces the receipt evidence. The application does not simulate a successful payment.
+
+## MVP API surfaces
+
+### Studio-protected
+
+```text
+POST /api/projects
+POST /api/projects/{project_id}/baseline-versions
+GET  /api/projects/{project_id}
+GET  /api/projects/{project_id}/amendments
+
+POST /api/change-requests/{request_id}/analyze
+POST /api/change-requests/{request_id}/amendments
+POST /api/amendments/{amendment_id}/merchant-approve
+POST /api/amendments/{amendment_id}/reconcile
+GET  /api/amendments/{amendment_id}
+```
+
+### Client-link protected
+
+```text
+GET  /client/projects/{client_token}
+POST /client/projects/{client_token}/requests
+
+GET  /client/amendments/{amendment_token}
+POST /client/amendments/{amendment_token}/accept
+```
+
+### PayPal callback
+
+```text
+GET /api/paypal/return
+GET /api/paypal/cancel
+```
+
+The callback does not trust the browser’s `token` alone. It must match a stored PayPal order belonging to the expected amendment.
+
+## Order creation
+
+The server creates the order only after:
+
+- Merchant approval exists.
+- Client acceptance exists.
+- Amendment snapshot is immutable.
+- Amount and currency are validated.
+- A stable order operation key is persisted.
+
+The PayPal order should include:
+
+- `intent: CAPTURE`
+- Approved amount.
+- Approved currency.
+- Amendment ID in supported reconciliation metadata such as `reference_id` or `custom_id`.
+- Configured public return URL.
+- Configured public cancel URL.
+
+The application must not create synthetic order IDs or approval URLs.
+
+## Buyer approval
+
+After return from PayPal:
+
+1. Extract the provider order token.
+2. Compare it to the stored PayPal order ID.
+3. Fetch order details from PayPal.
+4. Require the order to be in an approval-compatible state.
+5. Record buyer approval as a payment-state transition.
+6. Begin capture.
+
+The return page itself never means payment succeeded.
+
+## Capture verification
+
+The server should request a complete representation where supported, or retrieve details after a minimal response.
+
+The response is accepted as payment evidence only if:
+
+- HTTP response is successful.
+- Order ID matches.
+- Capture ID exists.
+- Capture status is `COMPLETED`.
+- Capture amount equals amendment amount exactly.
+- Capture currency equals amendment currency exactly.
+- Provider reference/custom ID matches the amendment.
+- The capture is associated with the expected PayPal order.
+- The response contains sufficient provider evidence to reproduce the decision.
+
+The server then commits:
+
+1. Payment evidence.
+2. Payment state `CAPTURED`.
+3. Amendment state `PAID`.
+4. `PAYMENT_CAPTURE_VERIFIED` event.
+
+These must occur in one local transaction.
+
+## Persisted PayPal evidence
+
+Persist at minimum:
+
+- PayPal order ID.
+- PayPal capture ID.
+- Order status.
+- Capture status.
+- Requested amount.
+- Requested currency.
+- Verified captured amount.
+- Verified captured currency.
+- Provider reference/custom ID.
+- PayPal fee if returned.
+- Provider create/update timestamps.
+- Approval URL.
+- Operation key.
+- Sanitized provider response.
+- Local verification timestamp.
+- Amendment ID.
+
+Do not persist:
+
+- Client secret.
+- OAuth access token.
+- Full sensitive payment credentials.
+- Unnecessary payer information.
+
+## Webhooks
+
+Webhooks are **not required for the MVP**.
+
+Reason:
+
+- Synchronous capture plus immediate provider verification is enough for the hackathon’s single-payment flow.
+- A fake browser webhook interface would create false confidence.
+- Genuine webhook support requires:
+  - Public HTTPS endpoint.
+  - Signature verification.
+  - Duplicate event handling.
+  - Event persistence.
+  - Reconciliation policy.
+
+The data model should remain extensible to webhooks through `PaymentAttempt` and `AmendmentEvent`.
+
+A future webhook implementation may update unresolved payment attempts, but it must use the same verification and amount-binding rules.
+
+# 11. PAYMENT FAILURE + RETRY MODEL
+
+## Failure states
+
+| Scenario | Payment state | Amendment state | Allowed action |
+|---|---|---|---|
+| Order creation rejected | `FAILED` | Remains `CLIENT_ACCEPTED` | Retry if parameters unchanged |
+| Network timeout creating order | `UNRESOLVED` | Remains `CLIENT_ACCEPTED` | Retry same operation key or reconcile |
+| Buyer abandons checkout | `BUYER_APPROVAL_PENDING` | `PAYMENT_PENDING` | Resume or cancel |
+| Buyer cancels checkout | `FAILED` or `NOT_STARTED` | `CLIENT_ACCEPTED` | Resume or cancel |
+| Capture declined | `FAILED` | `PAYMENT_FAILED` | Retry if PayPal permits |
+| Capture returns pending funds | `PENDING_FUNDS` | `PAYMENT_UNRESOLVED` | Reconcile later |
+| Capture returns HTTP 5xx | `UNRESOLVED` | `PAYMENT_UNRESOLVED` | Retry same capture key |
+| Capture response malformed | `UNRESOLVED` | `PAYMENT_UNRESOLVED` | Reconcile; never mark paid |
+| Unknown order | No mutation | No mutation | Return 404/error |
+| Already captured | Reconcile | `PAID` only after matching capture evidence | No second capture |
+| Amount mismatch | `FAILED` or `UNRESOLVED` | Never `PAID` | Manual reconciliation |
+| Currency mismatch | `FAILED` or `UNRESOLVED` | Never `PAID` | Manual reconciliation |
+| Missing capture ID | `UNRESOLVED` | Never `PAID` | Reconcile provider state |
+| Verified completed capture | `CAPTURED` | `PAID` | Receipt available |
+
+## Ambiguous provider response
+
+An ambiguous response means:
+
+- The provider may have processed the operation.
+- The application cannot yet prove the final state.
+- The provider response is missing required evidence.
+- A timeout occurred after the request was sent.
+- A 5xx response leaves the remote result unknown.
+
+The application must:
+
+1. Store `UNRESOLVED`.
+2. Preserve the operation key.
+3. Preserve any known order/capture IDs.
+4. Avoid generating replacement IDs.
+5. Avoid creating a new order blindly.
+6. Offer a reconcile action.
+7. Query PayPal using the known order ID.
+8. Mark `PAID` only if matching completed capture evidence is found.
+9. Otherwise keep the amendment unresolved.
+
+## Already-captured order
+
+If capture returns a conflict or already-captured response:
+
+1. Do not issue a second capture.
+2. Fetch PayPal order details.
+3. Inspect the capture list.
+4. Find the capture associated with the expected order and amendment.
+5. Validate amount, currency, status, and reference.
+6. Mark `PAID` only if all checks pass.
+7. Otherwise remain unresolved.
+
+## No local fallback
+
+The following are prohibited:
+
+- `ORDER-MOCK-*`
+- `CAP-*` locally generated as receipts.
+- Sandbox-looking URLs generated without PayPal response.
+- Returning HTTP 200 success after provider failure.
+- Returning `COMPLETED` from a local default.
+- Inventing payer email or fees.
+- Treating a redirect as payment proof.
+
+## Idempotency strategy
+
+### Order creation
+
+- Generate one UUID for the logical order-creation operation.
+- Persist it before the provider request.
+- Use it as `PayPal-Request-Id`.
+- Reuse it after timeout or 5xx.
+- Do not generate another key unless creating a genuinely new amendment snapshot.
+
+### Capture
+
+- Generate one UUID for the logical capture operation.
+- Persist it before the first capture request.
+- Reuse it for every retry of that capture.
+- Associate it with `(amendment_id, paypal_order_id)`.
+- Do not use a new request ID merely because the first response was unclear.
+
+### Database constraints
+
+- Unique operation key.
+- Unique logical capture operation per PayPal order.
+- One active open amendment per project for MVP.
+- One approved snapshot per amendment.
+- One verified capture per amendment.
+
+### Changed commercial terms
+
+If amount, currency, or selected scope changes:
+
+1. Cancel the old amendment or leave it as a historical rejected revision.
+2. Create a new amendment.
+3. Generate new operation keys.
+4. Never reuse old PayPal order or capture identity.
+
+# 12. AUTHORIZATION MODEL
+
+## MVP authority model
+
+No enterprise authentication is needed, but financial operations require ownership semantics.
+
+### Studio session
+
+Use a minimal demo session:
+
+- Studio operator authenticates through `/api/demo/login`.
+- Server validates a configured `DEMO_STUDIO_KEY`.
+- Server issues an HttpOnly, Secure-in-deployment, SameSite cookie.
+- Cookie maps to one configured `studio_id`.
+- All merchant routes require this session.
+- Every project, amendment, and reconciliation query is filtered by `studio_id`.
+
+The key is a demo credential, not a production account. It must not be committed to the repository.
+
+### Client access
+
+Clients do not need accounts.
+
+Use a signed, scoped client token containing:
+
+- Resource ID.
+- Role.
+- Purpose.
+- Expiration.
+- Nonce.
+
+Examples:
+
+- Project request token.
+- Amendment review/acceptance token.
+
+The server must verify:
+
+- Signature.
+- Purpose.
+- Expiry.
+- Resource ownership.
+- Current state.
+
+Client tokens cannot access:
+
+- Other projects.
+- Merchant routes.
+- Provider credentials.
+- Internal error details.
+- Unapproved draft amendments.
+
+### PayPal callback authority
+
+The PayPal return URL is public but restricted by:
+
+- Known stored PayPal order ID.
+- Expected amendment ID.
+- Provider order lookup.
+- Exact order ownership.
+- Exact amount/currency/reference matching.
+
+A callback token cannot create or approve an amendment by itself.
+
+## Explicitly out of scope
+
+- User registration.
+- Password reset.
+- Enterprise identity providers.
+- Multi-user roles.
+- Tenant administration.
+- Team invitations.
+- Production-grade session revocation.
+- SSO.
+
+# 13. FRONTEND EXPERIENCE
+
+## Design principle
+
+Replace the dashboard with one clear workflow. Every visible status must come from persisted server state.
+
+No:
+
+- Fake KPI strip.
+- Fake compliance score.
+- Fake settlement volume.
+- Fake webhook inspector.
+- Fake sample ledger presented as real.
+- Unbound QR code.
+- “Verified” label without provider evidence.
+
+## Screen 1: Studio project and baseline
+
+Content:
+
+- Project name.
+- Client name.
+- Client email.
+- SOW text area.
+- Current baseline version and hash prefix.
+- Create baseline button.
+- Client request link.
+
+States:
+
+- Empty project.
+- Baseline saved.
+- New baseline blocked because an open amendment exists.
+- Baseline version history.
+
+## Screen 2: Client request
+
+Public link view:
+
+- Project name.
+- Short explanation.
+- Client request textarea.
+- Submit request button.
+- Confirmation that the request is being analyzed.
+
+The client does not see internal merchant controls.
+
+## Screen 3: Studio analysis and amendment review
+
+For each request item:
+
+- Original request text.
+- Normalized text.
+- Classification pill:
+  - Included.
+  - Extra.
+  - Uncertain.
+- Exact baseline quote.
+- Baseline version number.
+- Reasoning.
+- Uncertainty explanation where applicable.
+
+Merchant controls:
+
+- Select grounded extra items.
+- Edit amendment wording.
+- Enter amount.
+- Select supported currency.
+- Approve amendment.
+- Reject or cancel.
+
+Important UI rules:
+
+- An uncertain item cannot be selected.
+- Amount field is merchant-owned.
+- AI output is visibly labeled as analysis.
+- Evidence is visibly labeled as verified by the server.
+- “Suggested wording” is editable text, not a legal conclusion.
+
+## Screen 4: Client amendment and PayPal
+
+Client sees:
+
+- Request summary.
+- Included work.
+- Additional work.
+- Evidence excerpts.
+- Amendment wording.
+- Exact amount/currency.
+- Expiration time.
+- Accept and decline actions.
+
+After acceptance:
+
+- The acceptance confirmation is shown.
+- The client is sent to PayPal Sandbox.
+- The application does not display paid status until capture verification completes.
+
+## Screen 5: Receipt
+
+The receipt is a focused proof card:
+
+- Amendment ID.
+- Baseline version.
+- Amendment items.
+- Approved amount.
+- Client acceptance timestamp.
+- PayPal order ID.
+- PayPal capture ID.
+- Captured amount/currency.
+- Capture status.
+- Provider timestamp.
+- Verification timestamp.
+
+Failure states must be equally clear:
+
+- Buyer approval pending.
+- Payment failed.
+- Payment unresolved.
+- Amount mismatch.
+- Reconciliation required.
+
+## Frontend implementation choice
+
+Use one frontend source of truth:
+
+- Rewrite `index.html`.
+- Rewrite `app/static/ts/app.ts`.
+- Keep `styles.css` only where useful.
+- Generate `app.js` from the TypeScript build.
+- Remove the absolute local TypeScript path.
+- Add actual browser tests against ScopeGuard.
+- Do not maintain separate divergent frontend contracts.
+
+# 14. 3-MINUTE DEMO
+
+## Killer scenario
+
+Baseline SOW:
+
+```text
+Three revision rounds are included.
+HubSpot integration is excluded.
+Mobile bug fixes are included.
+```
+
+Client request:
+
+```text
+Fix the mobile checkout bug and add HubSpot integration.
+```
+
+## Demo flow
+
+### 0–15 seconds: Problem
+
+Show a fixed-fee studio receiving a mixed request. State:
+
+> “The studio wants to fix the included bug without accidentally doing the excluded integration for free.”
+
+### 15–35 seconds: Baseline and request
+
+Show the exact SOW and the client’s request.
+
+### 35–60 seconds: AI analysis
+
+Display two atomic items:
+
+```text
+Mobile checkout bug
+INCLUDED
+Evidence: “Mobile bug fixes are included.”
+
+HubSpot integration
+EXTRA
+Evidence: “HubSpot integration is excluded.”
+```
+
+If an item lacks evidence, show `UNCERTAIN` instead of forcing a verdict.
+
+### 60–80 seconds: Merchant approval
+
+Merchant selects only HubSpot integration.
+
+Merchant enters:
+
+```text
+$350.00 USD
+```
+
+The UI clearly indicates that the amount was entered by the merchant, not generated by AI.
+
+### 80–100 seconds: Amendment snapshot
+
+Show:
+
+```text
+Amendment #001
+Baseline v1
+Additional scope: HubSpot integration
+Amount: $350.00 USD
+Status: MERCHANT_APPROVED
+```
+
+Copy the client acceptance link.
+
+### 100–120 seconds: Client acceptance
+
+Open the client link. Show:
+
+- Evidence.
+- Additional scope.
+- Exact amount.
+- Accept button.
+
+Click accept.
+
+### 120–155 seconds: PayPal Sandbox
+
+Show:
+
+- Genuine PayPal order creation.
+- PayPal approval URL.
+- Buyer approval using a Sandbox personal account.
+- Server-side capture.
+
+The video must not display a locally generated order or capture ID.
+
+### 155–175 seconds: Verified receipt
+
+Show:
+
+```text
+Amendment #001
+HubSpot integration
+$350.00 USD
+PayPal order ID: provider value
+PayPal capture ID: provider value
+Capture status: COMPLETED
+Verified amount: $350.00 USD
+Amendment status: PAID
+```
+
+### 175–180 seconds: Invariant
+
+Show a brief negative-state panel or test result:
+
+```text
+No verified PayPal capture = amendment remains unpaid.
+```
+
+## Optional failure demonstration
+
+If it can be shown reliably without risking demo instability:
+
+- Open an amendment.
+- Abandon PayPal approval.
+- Show `BUYER_APPROVAL_PENDING`, not `PAID`.
+
+Do not force a live declined transaction into a three-minute video unless it has been rehearsed in the Sandbox.
+
+# 15. DIFFERENTIATION
+
+The audit confirms the category is not empty. The product must not claim that no competitors exist.
+
+## Candidate dimensions
+
+| Candidate | Feasible for MVP | Demonstrable | Competitive value |
+|---|---:|---:|---:|
+| Item-level mixed-request decomposition | Yes | Yes | Medium |
+| Exact evidence grounding | Yes | Yes | High |
+| Abstention on insufficient evidence | Yes | Yes | High |
+| Baseline-version binding | Yes | Partially | High |
+| Amendment versioning | Yes | Partially | Medium-high |
+| Amendment-to-PayPal capture binding | Yes | Yes | High |
+| Truthful failure/retry handling | Yes | Through tests | High |
+| Native Slack/email ingestion | No | No | Not selected |
+| AI-generated pricing | Prohibited | No | Rejected |
+
+## Selected demonstrable differentiators
+
+### 1. Evidence-grounded abstention
+
+The product does not merely return “included” or “extra.” It proves the quote exists in the correct baseline or returns `UNCERTAIN`.
+
+### 2. Baseline-version binding
+
+Every analysis item and amendment references a specific immutable baseline version. Historical evidence cannot silently change when the SOW changes.
+
+### 3. Amendment-to-capture binding
+
+The PayPal order and capture must match:
+
+- The amendment.
+- The approved amount.
+- The approved currency.
+- The provider reference.
+- The verified capture status.
+
+### 4. Truthful failure behavior
+
+A failed or ambiguous PayPal response remains failed or unresolved. It does not become a polished fake receipt.
+
+These are not proven market-exclusive capabilities. They are the technical/product behaviors the hackathon build can credibly demonstrate.
+
+# 16. HACKATHON STRATEGY
+
+The five judging criteria are equally weighted.
+
+## Technological Implementation
+
+**Target: STRONG.**
+
+Demonstrate:
+
+- Real AI request decomposition.
+- Strict structured output.
+- Evidence validation.
+- Separate state machines.
+- Real PayPal Sandbox order, approval, capture, and verification.
+- Stable idempotency keys.
+- Adversarial financial tests.
+
+Do not claim the current repository already meets this. The audit rated the current build **WEAK**.
+
+## Design
+
+**Target: STRONG.**
+
+Use:
+
+- Three or four focused workflow views.
+- Clear evidence cards.
+- Clear state labels.
+- No dashboard clutter.
+- Strong empty, loading, error, pending, and unresolved states.
+- Accessible labels and keyboard navigation.
+- A visible difference between AI analysis and server verification.
+
+The current visual assets are reusable selectively, but the current shipped experience was rated **WEAK** because the browser wiring fails.
+
+## Potential Impact
+
+**Target: DECENT.**
+
+Use a narrow claim:
+
+> “Small studios can stop doing clearly excluded work for free by agreeing and collecting for the additional part before starting it.”
+
+Do not use unsupported annual revenue-loss percentages.
+
+## Innovation / Idea
+
+**Target: DECENT.**
+
+The category is crowded. The novelty is the combination of:
+
+- Grounded item-level evidence.
+- Explicit uncertainty.
+- Immutable amendment snapshots.
+- Verified PayPal capture binding.
+
+Do not claim exceptional novelty.
+
+## Presentation
+
+**Target: STRONG.**
+
+The video should show one complete scenario, not a feature tour.
+
+Sequence:
+
+```text
+Mixed request
+→ exact evidence
+→ merchant price
+→ client acceptance
+→ real PayPal Sandbox
+→ verified receipt
+```
+
+## Sponsor tools
+
+Do not add MCP, Agent Toolkit, or other sponsor tooling solely for optics. They are not required by the official rules and do not solve the core integrity problem.
+
+# 17. KEEP / REWRITE / DELETE / ARCHIVE
+
+No cleanup should be performed until implementation begins.
+
+## KEEP
+
+Keep conceptually:
+
+- FastAPI foundation.
+- SQLAlchemy/Pydantic foundation.
+- SQLite for a fresh hackathon MVP.
+- Server-side PayPal HTTP integration pattern.
+- `.env.example`, after review.
+- `.gitignore`.
+- Open-source license, after metadata alignment.
+- Selected design tokens from `styles.css`.
+- Basic project persistence patterns.
+- PayPal official reference links.
+
+## REWRITE
+
+### Backend
+
+- `app/main.py`
+  - Remove fake KPI route.
+  - Remove fake/static telemetry assumptions.
+  - Register the new routers.
+  - Configure the real public base URL.
+
+- `app/models.py`
+  - Replace `ScopeStatus` with separate AI, amendment, and payment state fields.
+  - Add immutable baseline and amendment records.
+  - Remove payment state from AI classification.
+
+- `app/schemas.py`
+  - Strict AI output schemas.
+  - Amendment approval schemas.
+  - Client acceptance schemas.
+  - PayPal verification schemas.
+  - No client-controlled financial fields on payment routes.
+
+- `app/routers/projects.py`
+  - Add studio ownership.
+  - Add immutable baseline versions.
+
+- `app/routers/scope.py`
+  - Replace broad analysis routes with change-request analysis.
+  - Add evidence-validation flow.
+  - Remove AI-to-PAID pathways.
+
+- `app/routers/paypal.py`
+  - Remove all synthetic fallback IDs and receipts.
+  - Add order/capture/reconciliation state handling.
+  - Validate exact amount, currency, reference, and status.
+
+- `app/services/ai.py`
+  - Replace keyword fallback.
+  - Add strict schema parsing.
+  - Add explicit abstention.
+  - Reject payment fields from model output.
+
+- `app/services/paypal.py`
+  - Persist and reuse operation keys.
+  - Use configured public URLs.
+  - Request or retrieve complete capture evidence.
+  - Return typed provider failures.
+
+### Frontend
+
+- `app/static/index.html`
+  - Replace dashboard layout with the focused journey.
+
+- `app/static/ts/app.ts`
+  - Rewrite against the new API.
+  - Use server state rather than fake local state.
+  - Remove sample ledger/KPI initialization.
+
+- `app/static/styles.css`
+  - Preserve useful tokens.
+  - Remove styles for deleted enterprise panels.
+
+- `app/static/app.js`
+  - Generate from one source.
+  - Do not hand-maintain a divergent emitted artifact.
+
+### Documentation
+
+- `README.md`
+  - Rewrite around the pivot.
+  - Remove mission-critical and unsupported impact claims.
+  - Document real setup and Sandbox behavior.
+
+- `LOCAL_SETUP.md`
+  - Replace with one portable setup guide.
+
+- `PAYPAL_SETUP.md`
+  - Rewrite around Orders v2 CAPTURE flow.
+  - Remove claims about refunds, agent loops, payment tables, and token caching unless implemented.
+
+- `AGENTS.md`
+  - Replace the old ScopeBridge/RTO charter with current product invariants and source-of-truth rules.
+
+- `package.json`
+  - Replace absolute local paths.
+  - Align package metadata and lockfile.
+
+## DELETE
+
+Delete or replace during implementation:
+
+- Fake KPI logic and hardcoded baseline numbers.
+- Fake KPI display and fabricated sample ledger rows.
+- Fake webhook inspector.
+- Static QR artwork that is not order-bound.
+- Legacy inline handlers that do not map to the new controller.
+- Synthetic `ORDER-MOCK-*` and `CAP-*` paths.
+- PayPal fallback success behavior.
+- Stale Playwright example that tests `playwright.dev`.
+- Duplicate frontend contracts.
+- RTO/lead-follow-up references that are not part of the pivot.
+
+## ARCHIVE
+
+Move out of the active product surface:
+
+- `KITTRUST_IMPLEMENTATION_PLAN.md`.
+- Historical `ORCHESTRATION.log`.
+- Historical `HACKATHON_BRIEF.md`.
+- Historical `JUDGES_AND_STRATEGY.md`.
+- Cached `PAYPAL_RESOURCES` material that duplicates current official links.
+- Previous agent charter content.
+- Any RTO, lead-follow-up, or abandoned product narratives.
+
+Archive means preserve historical context without allowing it to function as current architecture authority.
+
+# 18. TEST STRATEGY
+
+Tests must prove invariants, not merely return HTTP 200.
+
+## A. Evidence grounding
+
+- Valid evidence span is accepted.
+- Quote with one changed word is rejected.
+- Line range outside the baseline is rejected.
+- Evidence from another project is rejected.
+- Evidence from an older baseline version is rejected against the current version.
+- Evidence with duplicate ambiguous matches becomes `UNCERTAIN`.
+
+## B. Included/excluded counterfactuals
+
+Use the same request against two baselines:
+
+```text
+Baseline A: HubSpot integration is included.
+Baseline B: HubSpot integration is excluded.
+```
+
+Expected:
+
+- Baseline A: `INCLUDED`.
+- Baseline B: `EXTRA`.
+- Same request must not produce the same hardcoded result.
+
+## C. Mixed requests
+
+Given:
+
+```text
+Fix the mobile checkout bug and add HubSpot integration.
+```
+
+Expected:
+
+- Two request items.
+- Mobile bug: `INCLUDED`.
+- HubSpot: `EXTRA`.
+- Separate evidence spans.
+- One amendment can select only HubSpot.
+
+## D. Uncertainty / abstention
+
+- Silent baseline clause produces `UNCERTAIN`.
+- Conflicting clauses produce `UNCERTAIN`.
+- Uncertain item cannot be selected for a paid amendment.
+- Analysis remains `NEEDS_CLARIFICATION`.
+
+## E. Evidence fabrication rejection
+
+AI output claiming:
+
+```text
+Section 7.1 says HubSpot is excluded.
+```
+
+when no such section exists must:
+
+- Fail evidence validation.
+- Produce `UNCERTAIN` or analysis failure.
+- Create no payable amendment from that item.
+
+## F. Amendment state transitions
+
+Test:
+
+- Legal draft creation.
+- Legal merchant approval.
+- Legal client acceptance.
+- Illegal direct `DRAFT → PAID`.
+- Illegal `AI → PAID`.
+- Illegal approval with uncertain item.
+- Illegal approval with stale baseline.
+- Illegal edit after merchant approval.
+- Cancellation behavior.
+- Expiration behavior.
+
+## G. Merchant approval
+
+Test:
+
+- Missing merchant session returns unauthorized.
+- Wrong studio cannot access the project.
+- Negative amount rejected.
+- Zero amount rejected for paid amendment.
+- Unsupported currency rejected.
+- Merchant snapshot hash is persisted.
+- Amount cannot be changed after approval.
+
+## H. Client acceptance
+
+Test:
+
+- Invalid token rejected.
+- Expired token rejected.
+- Token for another amendment rejected.
+- Acceptance records exact snapshot hash.
+- Client cannot change price or scope.
+- Repeated acceptance is idempotent and does not create duplicate payment operations.
+
+## I. PayPal order creation failure
+
+Test with a provider fake:
+
+- Timeout.
+- HTTP 400.
+- HTTP 401.
+- HTTP 500.
+- Malformed response.
+- No order ID.
+- No approval URL.
+
+Expected:
+
+- No synthetic order ID.
+- No synthetic URL.
+- No `PAID`.
+- Correct failed or unresolved state.
+
+## J. Capture failure
+
+Test:
+
+- Declined capture.
+- HTTP 422.
+- HTTP 500.
+- Provider exception.
+- Capture response missing nested payment data.
+
+Expected:
+
+- No `PAID`.
+- No fake capture ID.
+- Payment evidence records the failure.
+
+## K. Pending capture
+
+Test:
+
+- Provider capture status `PENDING`.
+- Seller receivable breakdown absent.
+
+Expected:
+
+- Payment remains pending/unresolved.
+- Amendment remains unpaid.
+- Reconciliation remains available.
+
+## L. Amount mismatch
+
+Provider returns completed capture for the wrong amount.
+
+Expected:
+
+- No `PAID`.
+- Payment becomes unresolved.
+- Mismatch is recorded.
+- Manual reconciliation required.
+
+## M. Currency mismatch
+
+Provider returns completed capture in the wrong currency.
+
+Expected:
+
+- No `PAID`.
+- No local currency substitution.
+- Mismatch is recorded.
+
+## N. Unknown order
+
+Attempt capture or reconciliation for an unknown PayPal order.
+
+Expected:
+
+- Error response.
+- No local amendment mutation.
+- No receipt.
+
+## O. Retry/idempotency
+
+Test:
+
+- Same create request repeated after timeout.
+- Same capture request repeated after timeout.
+- Same operation key reused.
+- No second logical order.
+- No second logical capture.
+- Stored provider response returned when available.
+
+## P. Provider timeout
+
+Test provider success followed by local timeout.
+
+Expected:
+
+- Local state becomes `UNRESOLVED`.
+- Operation key and order ID remain available.
+- Reconciliation can discover the completed payment.
+- Only matching provider evidence transitions to `PAID`.
+
+## Q. Model output containing `PAID`
+
+Inject AI output containing:
+
+```json
+{
+  "classification": "PAID"
+}
+```
+
+Expected:
+
+- Strict schema rejects it.
+- Analysis fails or becomes unresolved.
+- No amendment is paid.
+- No payment attempt is created.
+- No financial record is mutated.
+
+This is the most important AI/financial isolation test.
+
+## R. Unauthorized financial operation
+
+Test:
+
+- Anonymous merchant approval.
+- Anonymous order creation.
+- Wrong studio access.
+- Client token attempting merchant action.
+- Client token attempting reconciliation.
+
+Expected:
+
+- Authorization failure.
+- No state mutation.
+
+## S. Historical amendment integrity
+
+Test:
+
+1. Create baseline v1.
+2. Analyze request against v1.
+3. Create amendment referencing v1.
+4. Create baseline v2.
+5. Read v1 evidence and amendment.
+6. Verify all v1 evidence remains byte-for-byte reproducible.
+7. Verify new requests use v2.
+8. Verify stale/open amendment policy is enforced.
+
+## Verification layers
+
+- Unit tests for state transitions and evidence validation.
+- API integration tests with SQLite and fake PayPal adapter.
+- Browser E2E tests against a local fake provider.
+- Manual Sandbox smoke test with real buyer approval and capture.
+- Manual visual review at desktop and mobile widths.
+- Fresh-install verification from README instructions.
+
+# 19. PHASED IMPLEMENTATION PLAN
+
+## Phase 0: Repository cleanup
+
+### Files/components
+
+- `README.md`
+- `AGENTS.md`
+- `LOCAL_SETUP.md`
+- `PAYPAL_SETUP.md`
+- `package.json`
+- `package-lock.json`
+- Existing fake KPI/webhook/frontend code
+- Existing stale tests and docs
+
+### Purpose
+
+Create one truthful, portable product surface before changing behavior.
+
+### Dependencies
+
+None.
+
+### Acceptance criteria
+
+- No active documentation claims unimplemented workflows.
+- No fake payment fallback remains in the planned active code path.
+- No absolute local build paths remain.
+- Current product name and scope are clear.
+- Historical artifacts are marked archived.
+
+### Tests
+
+- Documentation/setup spot check.
+- Fresh dependency installation.
+- Static search for fake identifiers such as `ORDER-MOCK`, fabricated KPI totals, and fake webhook success.
+
+### Risks
+
+- Removing historical files too aggressively.
+- Breaking existing local setup before new setup exists.
+
+## Phase 1: Domain/state model
+
+### Files/components
+
+- `app/models.py`
+- `app/schemas.py`
+- `app/db.py`
+- `app/auth.py`
+- `app/services/amendments.py`
+- State-transition tests
+
+### Purpose
+
+Create separate AI, amendment, and payment state machines with ownership and immutable snapshots.
+
+### Dependencies
+
+Phase 0.
+
+### Acceptance criteria
+
+- Baseline versions are immutable.
+- Evidence references a baseline version.
+- Amendments snapshot selected items and commercial terms.
+- AI cannot write payment state.
+- Only legal transitions are accepted.
+- `PAID` has no direct route or AI transition.
+
+### Tests
+
+- State transition matrix.
+- Unauthorized mutation tests.
+- Historical snapshot tests.
+
+### Risks
+
+- Existing SQLite schema incompatibility.
+- Accidental state duplication between database fields and event records.
+
+## Phase 2: Evidence-grounded AI
+
+### Files/components
+
+- `app/services/ai.py`
+- `app/services/evidence.py`
+- Strict Pydantic schemas
+- AI adapter interface
+- Evidence tests
+
+### Purpose
+
+Convert raw requests into grounded item-level analysis with abstention.
+
+### Dependencies
+
+Phase 1 baseline and request model.
+
+### Acceptance criteria
+
+- Model output contains only allowed fields.
+- No pricing/payment fields accepted.
+- Exact evidence validation occurs server-side.
+- Invalid evidence becomes uncertainty or analysis failure.
+- No semantic fallback is presented as AI.
+
+### Tests
+
+- Counterfactuals.
+- Mixed requests.
+- Fabricated evidence.
+- AI output containing `PAID`.
+- Provider failure.
+
+### Risks
+
+- Model inconsistency.
+- Long SOW context limits.
+- Evidence quote formatting differences.
+
+## Phase 3: Merchant amendment approval
+
+### Files/components
+
+- `app/services/amendments.py`
+- `app/routers/amendments.py`
+- `app/routers/projects.py`
+- Amendment UI
+- Merchant approval tests
+
+### Purpose
+
+Let the merchant select grounded items and set final commercial terms.
+
+### Dependencies
+
+Phases 1 and 2.
+
+### Acceptance criteria
+
+- Only grounded items can be selected.
+- Merchant enters final amount and currency.
+- Approval stores immutable snapshot hash.
+- Post-approval edits are prohibited.
+- Client link is generated only for an approved snapshot.
+
+### Tests
+
+- Amount validation.
+- Uncertain item rejection.
+- Snapshot immutability.
+- Ownership enforcement.
+
+### Risks
+
+- Confusion between included context and payable extra items.
+- Accidental client control over merchant terms.
+
+## Phase 4: PayPal Sandbox integration
+
+### Files/components
+
+- `app/services/paypal.py`
+- PayPal provider adapter
+- `app/routers/paypal.py`
+- `PaymentAttempt` persistence
+- PayPal response parser
+
+### Purpose
+
+Implement real Orders v2 creation, OAuth, stable idempotency, and response validation.
+
+### Dependencies
+
+Phase 3 approved amendment.
+
+### Acceptance criteria
+
+- Order is created only for client-accepted amendment.
+- No synthetic order IDs or URLs exist.
+- Operation keys persist and are reused.
+- Amount/currency/reference metadata comes from the amendment snapshot.
+- Provider failures remain failures or unresolved.
+
+### Tests
+
+- Fake provider order success.
+- Timeout.
+- 4xx/5xx.
+- Malformed response.
+- Idempotent retry.
+
+### Risks
+
+- Sandbox credentials.
+- Public callback URL.
+- PayPal response-shape variation.
+
+## Phase 5: Client acceptance and checkout
+
+### Files/components
+
+- Client request routes.
+- Client amendment routes.
+- PayPal return/cancel handlers.
+- Client UI.
+
+### Purpose
+
+Connect client acceptance to real PayPal checkout and capture.
+
+### Dependencies
+
+Phases 3 and 4.
+
+### Acceptance criteria
+
+- Client accepts the exact snapshot.
+- PayPal order is created after acceptance only.
+- Buyer approval is verified before capture.
+- Capture is attempted with stable operation identity.
+- No redirect alone marks payment successful.
+
+### Tests
+
+- Invalid client token.
+- Expired token.
+- Client acceptance.
+- Buyer abandonment.
+- Capture failure.
+- Capture unresolved.
+
+### Risks
+
+- Browser redirect timing.
+- Sandbox login/session timing.
+- Localhost versus public callback limitations.
+
+## Phase 6: Verified receipt and history
+
+### Files/components
+
+- Payment evidence queries.
+- Amendment history API.
+- Receipt UI.
+- Reconciliation endpoint.
+- `AmendmentEvent` display.
+
+### Purpose
+
+Show the complete evidence-to-payment chain as one record.
+
+### Dependencies
+
+Phases 1–5.
+
+### Acceptance criteria
+
+- Receipt shows exact amendment and PayPal facts.
+- Receipt cannot display “verified” without verified evidence.
+- History reads from persisted server data.
+- Reconciliation never fabricates success.
+- Historical baseline evidence remains reproducible.
+
+### Tests
+
+- Receipt field matching.
+- Amount/currency mismatch.
+- Unknown order.
+- Historical version integrity.
+- Reconciliation success/failure.
+
+### Risks
+
+- PII exposure in provider data.
+- Mismatch between current state projection and event history.
+
+## Phase 7: Browser E2E
+
+### Files/components
+
+- `playwright.config.ts`
+- `tests/e2e/amendment.spec.ts`
+- Local fake PayPal provider for deterministic tests
+- Fresh-start script
+
+### Purpose
+
+Prove the browser workflow rather than only API functions.
+
+### Dependencies
+
+Phases 1–6.
+
+### Acceptance criteria
+
+The browser can complete:
+
+```text
+Project
+→ Baseline
+→ Request
+→ Analysis
+→ Merchant approval
+→ Client acceptance
+→ Payment state
+→ Receipt
+```
+
+No DOM IDs or script-mode mismatch remain.
+
+### Tests
+
+- Chromium desktop.
+- One mobile viewport.
+- Success path.
+- Uncertainty path.
+- Failed payment path.
+- Unauthorized merchant path.
+
+### Risks
+
+- Test fake diverging from real PayPal.
+- Overfitting UI tests to implementation details.
+
+## Phase 8: Adversarial tests
+
+### Files/components
+
+- `tests/test_security_invariants.py`
+- `tests/test_payment_failures.py`
+- `tests/test_evidence_grounding.py`
+- `tests/test_state_machine.py`
+
+### Purpose
+
+Attack the exact failure modes found in the audit.
+
+### Dependencies
+
+All prior phases.
+
+### Acceptance criteria
+
+- AI output containing `PAID` cannot mutate payment state.
+- Failed payment cannot become paid.
+- Wrong amount/currency cannot become paid.
+- Replayed operation does not duplicate payment.
+- Unauthorized user cannot approve or reconcile.
+- Fabricated evidence cannot create a payable item.
+
+### Tests
+
+All categories A–S listed in section 18.
+
+### Risks
+
+- Tests accidentally use the same fake success assumptions as the old suite.
+- Environment credentials leaking into test runs.
+
+## Phase 9: Demo polish
+
+### Files/components
+
+- Focused UI styles.
+- Demo fixture.
+- README.
+- Demo script.
+- Sandbox runbook.
+- Screenshot/video preparation.
+
+### Purpose
+
+Make the truthful vertical slice easy to understand within three minutes.
+
+### Dependencies
+
+All previous phases passing.
+
+### Acceptance criteria
+
+- No fake metrics or fake integrations visible.
+- Demo uses one mixed request.
+- Real Sandbox buyer approval and capture are verified.
+- Negative state is understandable.
+- Fresh setup instructions work.
+- Video is under three minutes.
+
+### Tests
+
+- Manual rehearsal.
+- Fresh clone setup.
+- Real Sandbox smoke test.
+- Visual review at target breakpoints.
+
+### Risks
+
+- Live Sandbox latency.
+- Demo credentials or callback URLs expiring.
+- Attempting too many scenarios.
+
+# 20. DEFINITION OF DONE
+
+The MVP is done only when all required criteria pass.
+
+## Product behavior
+
+- A real SOW can be stored.
+- A new immutable baseline version can be created.
+- A real client request can be submitted.
+- The request is bound to the exact baseline version.
+- AI decomposes the request into atomic items.
+- Each item is `INCLUDED`, `EXTRA`, or `UNCERTAIN`.
+- AI can abstain.
+- Evidence is validated against the exact baseline text.
+- Fabricated evidence is rejected.
+- Merchant selects the final amendment scope.
+- Merchant controls the final amount.
+- Merchant controls the final currency.
+- Merchant approves an immutable amendment snapshot.
+- Client explicitly accepts the exact snapshot.
+- Client cannot alter the amount or scope.
+- A PayPal Sandbox order is genuinely created.
+- Buyer approval genuinely occurs.
+- Capture genuinely occurs.
+- Capture is independently verified.
+- PayPal order and capture are bound to the exact amendment.
+- Amount matches.
+- Currency matches.
+- Provider reference matches.
+- Verified PayPal evidence is persisted.
+- Only then does the amendment become `PAID`.
+- Historical evidence remains reproducible.
+
+## Financial safety
+
+- Failed order creation cannot become success.
+- Buyer abandonment cannot become paid.
+- Declined capture cannot become paid.
+- Pending capture cannot become paid.
+- Malformed provider response cannot become paid.
+- Missing capture ID cannot become paid.
+- Amount mismatch cannot become paid.
+- Currency mismatch cannot become paid.
+- Unknown order cannot mutate local state.
+- Retry uses the same operation key.
+- Provider success plus local timeout can be reconciled.
+- AI output containing `PAID` cannot create financial state.
+- No fake provider identifiers exist in the production path.
+
+## Authorization
+
+- Merchant financial routes require an owned studio session.
+- Client links are resource-scoped and expiring.
+- Client links cannot perform merchant actions.
+- PayPal callbacks validate stored order identity.
+- Projects cannot be read across studio ownership boundaries.
+
+## Browser and delivery
+
+- The complete workflow works through the browser.
+- Fresh installation/setup is documented and verified.
+- Actual ScopeGuard Playwright tests exist.
+- No test targets `playwright.dev`.
+- No absolute local build paths remain.
+- No fake KPI dashboard exists.
+- No fake webhook UI exists.
+- No fake payment receipts exist.
+- The demo can be shown in under three minutes.
+
+# 21. OPEN QUESTIONS
+
+These are unresolved product or delivery questions. They are not silently treated as facts.
+
+## Customer validation
+
+1. Will fixed-fee studios accept a separate amendment tool rather than using an existing invoicing/proposal system?
+2. Do target studios prefer payment before work begins, or payment after a signed amendment?
+3. Which studio segment should be tested first: web development, design, branding, or marketing?
+
+**Default for hackathon:** small web/design studios.
+
+## Client submission
+
+4. Is a public client request link required for the submission, or is studio-side paste of a verbatim client message sufficient?
+5. Should clients be able to submit multiple requests against the same baseline?
+
+**Default:** support one project-scoped request link and allow multiple requests, with one open amendment at a time.
+
+## Payment
+
+6. Is USD sufficient for the target demo?
+7. Is synchronous capture acceptable for the first product version?
+8. Is a manually operated reconciliation action acceptable instead of webhooks?
+
+**Default:** USD only, CAPTURE flow, no webhooks, owner-triggered reconciliation.
+
+## Baseline lifecycle
+
+9. Should an explicitly paid amendment be manually applied into a new baseline?
+10. What should happen when the studio uploads a new SOW while an amendment is open?
+
+**Default:** paid amendments do not silently rewrite the baseline. Draft amendments become stale when the baseline changes; approved or accepted open amendments block replacement until cancelled or completed.
+
+## Authentication and deployment
+
+11. Will the final demo run locally, on a hosted preview, or both?
+12. How will judges receive a safe demo access code?
+13. Is the public PayPal return URL available for the chosen environment?
+
+**Default:** one configured demo studio session, client access through signed links, and a documented Sandbox setup.
+
+## Data handling
+
+14. What retention policy applies to client SOWs and request text?
+15. Should client email be stored, or should the MVP avoid it?
+16. Should provider response bodies be retained in full or only as sanitized evidence?
+
+**Default:** retain only sanitized provider fields needed for reconciliation; avoid unnecessary payer data.
+
+## Scope-change handling
+
+17. Does the studio need to charge for included and extra items in one amendment?
+18. Should an uncertain item block the whole amendment or merely be excluded from the selected amendment?
+
+**Default:** uncertain items cannot be selected, but grounded extra items may proceed with an explicit warning.
+
+## External validation
+
+19. Actual customer demand is **[C] UNKNOWN — NOT VERIFIED**.
+20. Competitor implementation quality is **[C] UNKNOWN — NOT VERIFIED**.
+21. Production payment-country eligibility is **[C] UNKNOWN — NOT VERIFIED**.
+22. Actual OpenAI model quality on representative SOWs is **[C] UNKNOWN — NOT VERIFIED** until evaluated with a fixture set.
+
+# 22. FINAL ARCHITECTURAL DIAGRAM
+
+```text
+                         ┌──────────────────────┐
+                         │   Studio Session     │
+                         │   Single MVP Owner   │
+                         └──────────┬───────────┘
+                                    │
+                                    v
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Studio Workspace                           │
+│                                                                     │
+│  Project                                                            │
+│    └── BaselineVersion v1 (immutable text + SHA-256)                │
+│    └── BaselineVersion v2 (future immutable text + SHA-256)         │
+│                                                                     │
+│  Merchant creates client request link                               │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               v
+                    ┌──────────────────────┐
+                    │  Client Request Link │
+                    │  Signed + Expiring   │
+                    └──────────┬───────────┘
+                               │
+                               v
+                    ┌──────────────────────┐
+                    │   ChangeRequest      │
+                    │   Raw text preserved  │
+                    │   Bound to baseline  │
+                    └──────────┬───────────┘
+                               │
+                               v
+                    ┌──────────────────────┐
+                    │      AI Adapter      │
+                    │  Structured output   │
+                    │  No price/payment    │
+                    └──────────┬───────────┘
+                               │
+                               v
+                    ┌──────────────────────┐
+                    │ Server Validator     │
+                    │                      │
+                    │ - Schema validation │
+                    │ - Request matching  │
+                    │ - Line-range check  │
+                    │ - Exact quote check │
+                    │ - Version/hash check│
+                    └──────────┬───────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+              v                v                v
+        ┌──────────┐     ┌──────────┐     ┌──────────────┐
+        │ INCLUDED │     │  EXTRA   │     │  UNCERTAIN   │
+        └────┬─────┘     └────┬─────┘     └──────┬───────┘
+             │                │                  │
+             │                v                  │
+             │       ┌──────────────────┐       │
+             │       │ Merchant Review  │       │
+             │       │ Selects grounded │       │
+             │       │ extra items only │       │
+             │       └────────┬─────────┘       │
+             │                │                  │
+             │                v                  │
+             │       ┌──────────────────┐       │
+             │       │ Amendment Draft │       │
+             │       │ Scope snapshot  │       │
+             │       │ Merchant amount │       │
+             │       │ Baseline hash   │       │
+             │       └────────┬─────────┘       │
+             │                │                  │
+             │                v                  │
+             │       ┌──────────────────┐       │
+             │       │ Merchant Approved│       │
+             │       │ Immutable terms │       │
+             │       └────────┬─────────┘       │
+             │                │                  │
+             │                v                  │
+             │       ┌──────────────────┐       │
+             │       │ Client Accepts  │       │
+             │       │ Exact snapshot  │       │
+             │       └────────┬─────────┘       │
+             │                │                  │
+             │                v                  │
+             │       ┌──────────────────┐       │
+             │       │ PaymentAttempt  │       │
+             │       │ Stable operation│       │
+             │       │ identity        │       │
+             │       └────────┬─────────┘       │
+             │                │                  │
+             │                v                  │
+             │       ┌──────────────────┐       │
+             │       │ PayPal Sandbox  │       │
+             │       │ OAuth            │       │
+             │       │ Orders v2        │       │
+             │       │ Buyer approval   │       │
+             │       │ Capture          │       │
+             │       └────────┬─────────┘       │
+             │                │                  │
+             │                v                  │
+             │       ┌──────────────────┐       │
+             │       │ Provider Verify  │       │
+             │       │ Order ID         │       │
+             │       │ Capture ID       │       │
+             │       │ Status COMPLETED │       │
+             │       │ Amount/currency  │       │
+             │       │ Amendment ref    │       │
+             │       └────────┬─────────┘       │
+             │                │                  │
+             │                v                  │
+             │       ┌──────────────────┐       │
+             │       │ Amendment PAID  │       │
+             │       │ Verified receipt│       │
+             │       └──────────────────┘       │
+             │                                   │
+             └───────────────┬───────────────────┘
+                             v
+                  ┌────────────────────────┐
+                  │ No payment / uncertain│
+                  │ No PAID state          │
+                  │ Reconciliation needed  │
+                  └────────────────────────┘
+```
+
+## FINAL CALL
+
+**CONTINUE WITH PIVOT**
+
+- The surviving problem is credible enough for a focused hackathon product.
+- The existing repository contains reusable FastAPI, persistence, PayPal, and visual foundations.
+- The current product must be narrowed from enterprise governance to paid amendments.
+- AI has a meaningful role in decomposition, evidence discovery, and abstention.
+- AI must not control price, approval, or payment state.
+- Exact evidence validation is feasible without a vector database.
+- PayPal can be central through a genuine Sandbox order, approval, capture, and verification flow.
+- The strongest demonstrable differentiators are evidence grounding, version binding, and amendment-to-capture binding.
+- The existing frontend, payment fallback behavior, tests, and documentation require substantial rewrite.
+- The pivot should be rejected if real customer validation or a genuine PayPal Sandbox flow cannot be demonstrated before submission.
